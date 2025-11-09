@@ -12,10 +12,6 @@ export default function Home() {
   const [finalText, setFinalText] = useState("");
   const [interimText, setInterimText] = useState("");
 
-  // Splash state
-  const [showSplash, setShowSplash] = useState(true);
-  const [fadeSplash, setFadeSplash] = useState(false);
-
   const recognitionRef = useRef<any>(null);
   const shouldListenRef = useRef(true);
 
@@ -23,16 +19,6 @@ export default function Home() {
   const baseMsg = "Listening...";
   const [typed, setTyped] = useState("");
   const typingTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    // splash: show → fade → hide
-    const t1 = window.setTimeout(() => setFadeSplash(true), 1600); // start fade
-    const t2 = window.setTimeout(() => setShowSplash(false), 2300); // remove overlay
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
-  }, []);
 
   // Type/delete loop for "Listening..."
   useEffect(() => {
@@ -144,14 +130,7 @@ export default function Home() {
   }, [finalText, router]);
 
   return (
-    <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: "2rem", position: "relative" }}>
-      {/* Splash overlay */}
-      {showSplash && (
-        <div className={`splash ${fadeSplash ? "fade" : ""}`}>
-          <Image src="/images/logo.png" alt="App logo" width={360} height={360} priority />
-        </div>
-      )}
-
+    <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: "2rem", position: "relative", background: "white", color: "#1a1a1a"  }}>
       {/* Main UI */}
       <div style={{ maxWidth: 640, width: "100%", display: "grid", gap: "1rem" }}>
         <h1
@@ -209,14 +188,15 @@ export default function Home() {
         <div
           style={{
             padding: "1rem",
-            border: "1px solid #e6e6e6",
+            border: "1px solid #ddd",
             borderRadius: 12,
             minHeight: 140,
-            background: "linear-gradient(180deg, rgba(127,62,240,0.04), rgba(39,180,255,0.04))",
+            background: "white",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.05)"
           }}
         >
           <strong>Transcript</strong>
-          <p style={{ whiteSpace: "pre-wrap", marginTop: "0.5rem" }}>
+          <p style={{ whiteSpace: "pre-wrap", marginTop: "0.5rem", color: "#1a1a1a" }}>
             {finalText}
             <span style={{ opacity: 0.5 }}>{interimText}</span>
           </p>
@@ -229,25 +209,6 @@ export default function Home() {
 
       {/* component-scoped styles */}
       <style jsx>{`
-        /* Splash */
-        .splash {
-          position: fixed;
-          inset: 0;
-          display: grid;
-          place-items: center;
-          background: #070708;
-          z-index: 50;
-          opacity: 1;
-          transform: scale(1);
-          transition: opacity 600ms ease, transform 600ms ease;
-        }
-        .splash.fade {
-          opacity: 0;
-          transform: scale(0.98);
-          pointer-events: none;
-        }
-
-
         /* Bounce loader */
         .bounce {
           display: inline-flex;
@@ -259,7 +220,7 @@ export default function Home() {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: linear-gradient(135deg, #7f3ef0, #27b4ff);
+          background: linear-gradient(135deg, #8a5bff, #5cc8ff);
           animation: bounce 0.9s infinite ease-in-out;
         }
         .dot:nth-child(2) { animation-delay: 0.15s; }
