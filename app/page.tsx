@@ -1,65 +1,274 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
+
+  const [supported, setSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [finalText, setFinalText] = useState("");
+  const [interimText, setInterimText] = useState("");
+
+  // Splash state
+  const [showSplash, setShowSplash] = useState(true);
+  const [fadeSplash, setFadeSplash] = useState(false);
+
+  const recognitionRef = useRef<any>(null);
+  const shouldListenRef = useRef(true);
+
+  // --- typing animation state for "Listening…" (slower cadence) ---
+  const baseMsg = "Listening...";
+  const [typed, setTyped] = useState("");
+  const typingTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // splash: show → fade → hide
+    const t1 = window.setTimeout(() => setFadeSplash(true), 1600); // start fade
+    const t2 = window.setTimeout(() => setShowSplash(false), 2300); // remove overlay
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, []);
+
+  // Type/delete loop for "Listening..."
+  useEffect(() => {
+    if (!listening) {
+      if (typingTimerRef.current) window.clearInterval(typingTimerRef.current);
+      setTyped("");
+      return;
+    }
+    let i = 0;
+    let deleting = false;
+    let cooldown = 0;
+
+    const step = () => {
+      if (cooldown > 0) {
+        cooldown -= 1;
+        return;
+      }
+      if (!deleting) {
+        i++;
+        setTyped(baseMsg.slice(0, i));
+        if (i >= baseMsg.length) {
+          i = baseMsg.length;
+          deleting = true;
+          cooldown = 4; // hold full text a bit
+        }
+      } else {
+        i--;
+        setTyped(baseMsg.slice(0, i));
+        if (i <= 0) {
+          i = 0;
+          deleting = false;
+          cooldown = 4; // hold empty a bit
+        }
+      }
+    };
+
+    typingTimerRef.current = window.setInterval(step, 220); // slower letters
+    return () => {
+      if (typingTimerRef.current) window.clearInterval(typingTimerRef.current);
+    };
+  }, [listening]);
+
+  // Speech setup
+  useEffect(() => {
+    const SR =
+      typeof window !== "undefined" &&
+      ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+    if (!SR) {
+      setSupported(false);
+      return;
+    }
+    setSupported(true);
+
+    const r = new SR();
+    r.lang = "en-US";
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e: SpeechRecognitionEvent) => {
+      let interim = "";
+      let additions = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript;
+        if (e.results[i].isFinal) additions += transcript;
+        else interim += transcript;
+      }
+      if (additions) setFinalText((prev) => prev + additions);
+      setInterimText(interim);
+    };
+
+    r.onerror = () => setListening(false);
+
+    r.onend = () => {
+      setListening(false);
+      if (shouldListenRef.current) {
+        try {
+          r.start();
+          setListening(true);
+        } catch {}
+      }
+    };
+
+    recognitionRef.current = r;
+
+    try {
+      r.start();
+      setListening(true);
+    } catch {}
+
+    return () => {
+      shouldListenRef.current = false;
+      try {
+        r.abort();
+      } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    const normalized = finalText.toLowerCase();
+    if (normalized.includes("go to options")) {
+      router.push("/options");
+    } else if (normalized.includes("go to analytics")) {
+      router.push("/analytics");
+    } else if (normalized.includes("go to arrow run")) {
+      router.push("/arrow-run");
+    }
+  }, [finalText, router]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: "2rem", position: "relative" }}>
+      {/* Splash overlay */}
+      {showSplash && (
+        <div className={`splash ${fadeSplash ? "fade" : ""}`}>
+          <Image src="/images/logo.png" alt="App logo" width={360} height={360} priority />
+        </div>
+      )}
+
+      {/* Main UI */}
+      <div style={{ maxWidth: 640, width: "100%", display: "grid", gap: "1rem" }}>
+        <h1
+          style={{
+            fontSize: "2.6rem",
+            fontWeight: 800,
+            textAlign: "center",
+            lineHeight: 1.25,
+            letterSpacing: "-0.02em",
+            background:
+              "linear-gradient(90deg, #7f3ef0 0%, #6a5afc 33%, #3f8bfe 66%, #27b4ff 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "1rem",
+          }}
+        >
+          Therapy Backed by Science. <br /> Powered by Play.
+        </h1>
+
+        {!supported && (
+          <p>Your browser doesn’t support the Web Speech API. Try Chrome/Edge, or use a server-side STT route.</p>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minHeight: 24 }}>
+          {listening ? (
+            <>
+              {/* Bounce loader */}
+              <div className="bounce">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+              {/* Typing / disappearing loop */}
+              <span
+                style={{
+                  fontWeight: 600,
+                  letterSpacing: "0.02em",
+                  background:
+                    "linear-gradient(90deg,#7f3ef0 0%,#6a5afc 33%,#3f8bfe 66%,#27b4ff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  minWidth: 130,
+                  display: "inline-block",
+                }}
+                aria-live="polite"
+              >
+                {typed}
+              </span>
+            </>
+          ) : (
+            <span style={{ opacity: 0.7 }}>Not listening</span>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: "1rem",
+            border: "1px solid #e6e6e6",
+            borderRadius: 12,
+            minHeight: 140,
+            background: "linear-gradient(180deg, rgba(127,62,240,0.04), rgba(39,180,255,0.04))",
+          }}
+        >
+          <strong>Transcript</strong>
+          <p style={{ whiteSpace: "pre-wrap", marginTop: "0.5rem" }}>
+            {finalText}
+            <span style={{ opacity: 0.5 }}>{interimText}</span>
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <small>
+          Tip: Speak clearly. Interim (lighter) text becomes final after short pauses. Reload the page to clear.
+        </small>
+      </div>
+
+      {/* component-scoped styles */}
+      <style jsx>{`
+        /* Splash */
+        .splash {
+          position: fixed;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          background: #070708;
+          z-index: 50;
+          opacity: 1;
+          transform: scale(1);
+          transition: opacity 600ms ease, transform 600ms ease;
+        }
+        .splash.fade {
+          opacity: 0;
+          transform: scale(0.98);
+          pointer-events: none;
+        }
+
+
+        /* Bounce loader */
+        .bounce {
+          display: inline-flex;
+          gap: 6px;
+          height: 14px;
+          align-items: flex-end;
+        }
+        .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #7f3ef0, #27b4ff);
+          animation: bounce 0.9s infinite ease-in-out;
+        }
+        .dot:nth-child(2) { animation-delay: 0.15s; }
+        .dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.8; }
+          40% { transform: translateY(-6px); opacity: 1; }
+        }
+      `}</style>
+    </main>
   );
 }
