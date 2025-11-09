@@ -1,11 +1,26 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { GAME_WIDTH, GAME_HEIGHT } from "@/utils/constants";
+import Link from "next/link";
 
-const BASE_SPEED = 3;
-const SPEED_INCREMENT = 0.5; // Speed increases every 50 points
+const ALIEN_SIZE = 35;
+const BULLET_SIZE = 5;
+const PLAYER_SPEED = 6;
+const BULLET_SPEED = 8;
+const ALIEN_BULLET_SPEED = 4;
 
-export default function ArrowDodge2D() {
+type Bullet = {
+    x: number;
+    y: number;
+};
+
+type Alien = {
+    x: number;
+    y: number;
+    alive: boolean;
+};
+
+export default function SpaceInvaders() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [started, setStarted] = useState(false);
     const [score, setScore] = useState(0);
@@ -21,9 +36,7 @@ export default function ArrowDodge2D() {
         canvas.height = GAME_HEIGHT;
 
         if (!started) {
-            // Draw initial state with images
-            const spaceshipImg = new Image();
-            spaceshipImg.src = "/images/spaceship.png";
+            // Draw initial state
             const spaceBackground = new Image();
             spaceBackground.src = "/images/space-background.png";
 
@@ -41,63 +54,86 @@ export default function ArrowDodge2D() {
                     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                 }
 
-                if (spaceshipImg.complete) {
-                    ctx.drawImage(
-                        spaceshipImg,
-                        GAME_WIDTH / 2 - 25,
-                        GAME_HEIGHT / 2 - 25,
-                        50,
-                        50
-                    );
-                } else {
-                    ctx.fillStyle = "#0f172a";
-                    ctx.fillRect(
-                        GAME_WIDTH / 2 - 25,
-                        GAME_HEIGHT / 2 - 25,
-                        50,
-                        50
-                    );
+                // Draw player
+                ctx.fillStyle = "#22c55e";
+                ctx.beginPath();
+                ctx.moveTo(GAME_WIDTH / 2, GAME_HEIGHT - 60);
+                ctx.lineTo(GAME_WIDTH / 2 - 20, GAME_HEIGHT - 30);
+                ctx.lineTo(GAME_WIDTH / 2 + 20, GAME_HEIGHT - 30);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw sample aliens
+                for (let i = 0; i < 5; i++) {
+                    const x = GAME_WIDTH / 2 - 100 + i * 50;
+                    const y = 100;
+                    ctx.fillStyle = "#ef4444";
+                    ctx.fillRect(x - ALIEN_SIZE / 2, y, ALIEN_SIZE, ALIEN_SIZE);
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(x - 8, y + 10, 6, 6);
+                    ctx.fillRect(x + 2, y + 10, 6, 6);
                 }
             };
 
             drawInitial();
-            // Redraw when images load
-            spaceshipImg.onload = drawInitial;
             spaceBackground.onload = drawInitial;
             return;
         }
 
-        // reset everything
+        // Reset everything
         scoreRef.current = 0;
         setScore(0);
 
-        // Load images
-        const spaceshipImg = new Image();
-        spaceshipImg.src = "/images/spaceship.png";
-        const asteroidImg = new Image();
-        asteroidImg.src = "/images/asteroid.png";
+        // Load background
         const spaceBackground = new Image();
         spaceBackground.src = "/images/space-background.png";
 
+        // Game state
         const player = {
-            x: GAME_WIDTH / 2 - 25,
-            y: GAME_HEIGHT / 2 - 25,
-            size: 50,
+            x: GAME_WIDTH / 2,
+            y: GAME_HEIGHT - 50,
         };
-        let obstacles: {
-            x: number;
-            y: number;
-            dx: number;
-            dy: number;
-            size: number;
-            scored: boolean;
-        }[] = [];
+
+        let playerBullets: Bullet[] = [];
+        let alienBullets: Bullet[] = [];
+        const aliens: Alien[] = [];
+        let alienDirection = 1;
+        let alienMoveDown = false;
         let gameOver = false;
+        let gameWon = false;
         let frame = 0;
         let gameStarted = false;
+        let canShoot = true;
+
+        // Initialize aliens in a grid
+        const rows = 4;
+        const cols = 8;
+        const startX = 80;
+        const startY = 80;
+        const spacingX = 60;
+        const spacingY = 50;
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                aliens.push({
+                    x: startX + col * spacingX,
+                    y: startY + row * spacingY,
+                    alive: true,
+                });
+            }
+        }
 
         const keys: Record<string, boolean> = {};
-        window.onkeydown = (e) => (keys[e.key] = true);
+        window.onkeydown = (e) => {
+            keys[e.key] = true;
+
+            // Shoot on spacebar
+            if (e.key === " " && gameStarted && !gameOver && canShoot) {
+                playerBullets.push({ x: player.x, y: player.y });
+                canShoot = false;
+                setTimeout(() => (canShoot = true), 300);
+            }
+        };
         window.onkeyup = (e) => (keys[e.key] = false);
 
         // Countdown sequence
@@ -117,131 +153,107 @@ export default function ArrowDodge2D() {
 
         startCountdown();
 
-        function spawnObstacle() {
-            const dir = Math.floor(Math.random() * 4);
-            const size = 30 + Math.random() * 30; // Increased from 20-40 to 30-60
-            const currentSpeed =
-                BASE_SPEED +
-                Math.floor(scoreRef.current / 50) * SPEED_INCREMENT;
-
-            // After 100 points, some arrows go diagonal
-            const useDiagonal = scoreRef.current >= 20 && Math.random() < 0.3;
-
-            if (dir === 0)
-                obstacles.push({
-                    x: Math.random() * GAME_WIDTH,
-                    y: -size,
-                    dx: useDiagonal ? (Math.random() - 0.5) * currentSpeed : 0,
-                    dy: currentSpeed,
-                    size,
-                    scored: false,
-                });
-            if (dir === 1)
-                obstacles.push({
-                    x: Math.random() * GAME_WIDTH,
-                    y: GAME_HEIGHT + size,
-                    dx: useDiagonal ? (Math.random() - 0.5) * currentSpeed : 0,
-                    dy: -currentSpeed,
-                    size,
-                    scored: false,
-                });
-            if (dir === 2)
-                obstacles.push({
-                    x: -size,
-                    y: Math.random() * GAME_HEIGHT,
-                    dx: currentSpeed,
-                    dy: useDiagonal ? (Math.random() - 0.5) * currentSpeed : 0,
-                    size,
-                    scored: false,
-                });
-            if (dir === 3)
-                obstacles.push({
-                    x: GAME_WIDTH + size,
-                    y: Math.random() * GAME_HEIGHT,
-                    dx: -currentSpeed,
-                    dy: useDiagonal ? (Math.random() - 0.5) * currentSpeed : 0,
-                    size,
-                    scored: false,
-                });
-        }
-
         function update() {
-            // Only allow movement and game logic after countdown
-            if (gameStarted) {
-                if (keys["ArrowLeft"]) player.x -= 5;
-                if (keys["ArrowRight"]) player.x += 5;
-                if (keys["ArrowUp"]) player.y -= 5;
-                if (keys["ArrowDown"]) player.y += 5;
-
-                player.x = Math.max(
-                    0,
-                    Math.min(GAME_WIDTH - player.size, player.x)
-                );
-                player.y = Math.max(
-                    0,
-                    Math.min(GAME_HEIGHT - player.size, player.y)
-                );
+            if (gameStarted && !gameOver && !gameWon) {
+                // Player movement
+                if (keys["ArrowLeft"]) player.x -= PLAYER_SPEED;
+                if (keys["ArrowRight"]) player.x += PLAYER_SPEED;
+                player.x = Math.max(20, Math.min(GAME_WIDTH - 20, player.x));
 
                 frame++;
 
-                // Spawn more frequently after 100 points
-                const spawnRate = scoreRef.current >= 100 ? 20 : 40;
-                if (frame % spawnRate === 0) spawnObstacle();
+                // Move player bullets
+                playerBullets.forEach((b) => (b.y -= BULLET_SPEED));
+                playerBullets = playerBullets.filter((b) => b.y > 0);
 
-                // move obstacles
-                obstacles.forEach((o) => {
-                    o.x += o.dx;
-                    o.y += o.dy;
-                });
-            }
+                // Move alien bullets
+                alienBullets.forEach((b) => (b.y += ALIEN_BULLET_SPEED));
+                alienBullets = alienBullets.filter((b) => b.y < GAME_HEIGHT);
 
-            // Only do collision and scoring after game starts
-            if (gameStarted) {
-                // collision check with adjusted hitbox for spaceship shape
-                // The spaceship's main body is more centered, so reduce hitbox by ~20%
-                const hitboxPadding = player.size * 0.2;
-                const playerHitX = player.x + hitboxPadding;
-                const playerHitY = player.y + hitboxPadding;
-                const playerHitWidth = player.size - hitboxPadding * 2;
-                const playerHitHeight = player.size - hitboxPadding * 2;
-
-                for (const o of obstacles) {
-                    if (
-                        o.x < playerHitX + playerHitWidth &&
-                        o.x + o.size > playerHitX &&
-                        o.y < playerHitY + playerHitHeight &&
-                        o.y + o.size > playerHitY
-                    ) {
-                        gameOver = true;
+                // Aliens shoot randomly
+                if (frame % 60 === 0) {
+                    const aliveAliens = aliens.filter((a) => a.alive);
+                    if (aliveAliens.length > 0) {
+                        const shooter =
+                            aliveAliens[
+                                Math.floor(Math.random() * aliveAliens.length)
+                            ];
+                        alienBullets.push({
+                            x: shooter.x,
+                            y: shooter.y + ALIEN_SIZE,
+                        });
                     }
                 }
 
-                // scoring
-                obstacles.forEach((o) => {
-                    if (o.scored) return;
-                    const outRight = o.dx > 0 && o.x > GAME_WIDTH;
-                    const outLeft = o.dx < 0 && o.x + o.size < 0;
-                    const outBottom = o.dy > 0 && o.y > GAME_HEIGHT;
-                    const outTop = o.dy < 0 && o.y + o.size < 0;
-                    if (outRight || outLeft || outBottom || outTop) {
-                        o.scored = true;
-                        scoreRef.current++;
-                        setScore(scoreRef.current);
+                // Move aliens
+                if (frame % 30 === 0) {
+                    if (alienMoveDown) {
+                        aliens.forEach((a) => (a.y += 20));
+                        alienMoveDown = false;
+                    } else {
+                        const aliveAliens = aliens.filter((a) => a.alive);
+                        const leftMost = Math.min(
+                            ...aliveAliens.map((a) => a.x)
+                        );
+                        const rightMost = Math.max(
+                            ...aliveAliens.map((a) => a.x)
+                        );
+
+                        if (
+                            (alienDirection === 1 &&
+                                rightMost >= GAME_WIDTH - 40) ||
+                            (alienDirection === -1 && leftMost <= 40)
+                        ) {
+                            alienDirection *= -1;
+                            alienMoveDown = true;
+                        }
+
+                        aliens.forEach((a) => (a.x += alienDirection * 10));
+                    }
+                }
+
+                // Check bullet collisions with aliens
+                playerBullets.forEach((bullet, bIndex) => {
+                    aliens.forEach((alien) => {
+                        if (
+                            alien.alive &&
+                            bullet.x > alien.x - ALIEN_SIZE / 2 &&
+                            bullet.x < alien.x + ALIEN_SIZE / 2 &&
+                            bullet.y > alien.y &&
+                            bullet.y < alien.y + ALIEN_SIZE
+                        ) {
+                            alien.alive = false;
+                            playerBullets.splice(bIndex, 1);
+                            scoreRef.current += 10;
+                            setScore(scoreRef.current);
+                        }
+                    });
+                });
+
+                // Check alien bullets hitting player
+                alienBullets.forEach((bullet) => {
+                    if (
+                        bullet.x > player.x - 20 &&
+                        bullet.x < player.x + 20 &&
+                        bullet.y > player.y - 10
+                    ) {
+                        gameOver = true;
                     }
                 });
 
-                // cleanup offscreen
-                obstacles = obstacles.filter(
-                    (o) =>
-                        o.x > -60 &&
-                        o.x < GAME_WIDTH + 60 &&
-                        o.y > -60 &&
-                        o.y < GAME_HEIGHT + 60
-                );
+                // Check if aliens reached bottom
+                const aliveAliens = aliens.filter((a) => a.alive);
+                if (aliveAliens.some((a) => a.y > GAME_HEIGHT - 100)) {
+                    gameOver = true;
+                }
+
+                // Check win condition
+                if (aliveAliens.length === 0) {
+                    gameWon = true;
+                }
             }
 
-            // draw frame
-            // Draw space background
+            // Draw frame
             if (spaceBackground.complete) {
                 ctx.drawImage(spaceBackground, 0, 0, GAME_WIDTH, GAME_HEIGHT);
             } else {
@@ -249,39 +261,68 @@ export default function ArrowDodge2D() {
                 ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
             }
 
-            // Draw spaceship
-            if (spaceshipImg.complete) {
-                ctx.drawImage(
-                    spaceshipImg,
-                    player.x,
-                    player.y,
-                    player.size,
-                    player.size
-                );
-            } else {
-                ctx.fillStyle = "#0f172a";
-                ctx.fillRect(player.x, player.y, player.size, player.size);
-            }
+            // Draw player
+            ctx.fillStyle = "#22c55e";
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y - 10);
+            ctx.lineTo(player.x - 20, player.y + 10);
+            ctx.lineTo(player.x + 20, player.y + 10);
+            ctx.closePath();
+            ctx.fill();
 
-            // Draw asteroids
-            obstacles.forEach((o) => {
-                if (asteroidImg.complete) {
-                    ctx.drawImage(asteroidImg, o.x, o.y, o.size, o.size);
-                } else {
+            // Draw aliens
+            aliens.forEach((alien) => {
+                if (alien.alive) {
                     ctx.fillStyle = "#ef4444";
-                    ctx.fillRect(o.x, o.y, o.size, o.size);
+                    ctx.fillRect(
+                        alien.x - ALIEN_SIZE / 2,
+                        alien.y,
+                        ALIEN_SIZE,
+                        ALIEN_SIZE
+                    );
+                    // Eyes
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(alien.x - 8, alien.y + 10, 6, 6);
+                    ctx.fillRect(alien.x + 2, alien.y + 10, 6, 6);
                 }
             });
 
-            // Display score at top center
+            // Draw player bullets
+            ctx.fillStyle = "#3b82f6";
+            playerBullets.forEach((b) => {
+                ctx.fillRect(
+                    b.x - BULLET_SIZE / 2,
+                    b.y,
+                    BULLET_SIZE,
+                    BULLET_SIZE * 2
+                );
+            });
+
+            // Draw alien bullets
+            ctx.fillStyle = "#f59e0b";
+            alienBullets.forEach((b) => {
+                ctx.fillRect(
+                    b.x - BULLET_SIZE / 2,
+                    b.y,
+                    BULLET_SIZE,
+                    BULLET_SIZE * 2
+                );
+            });
+
+            // Display score
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 48px sans-serif";
-            ctx.textAlign = "center";
-            ctx.strokeStyle = "#000000";
-            ctx.lineWidth = 3;
-            ctx.strokeText(scoreRef.current.toString(), GAME_WIDTH / 2, 50);
-            ctx.fillText(scoreRef.current.toString(), GAME_WIDTH / 2, 50);
+            ctx.font = "bold 32px sans-serif";
             ctx.textAlign = "left";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2;
+            ctx.strokeText(`Score: ${scoreRef.current}`, 20, 40);
+            ctx.fillText(`Score: ${scoreRef.current}`, 20, 40);
+
+            // Aliens remaining
+            const remaining = aliens.filter((a) => a.alive).length;
+            ctx.textAlign = "right";
+            ctx.strokeText(`Aliens: ${remaining}`, GAME_WIDTH - 20, 40);
+            ctx.fillText(`Aliens: ${remaining}`, GAME_WIDTH - 20, 40);
 
             // Show countdown overlay
             if (!gameStarted && countdownRef.current) {
@@ -295,23 +336,49 @@ export default function ArrowDodge2D() {
                     GAME_WIDTH / 2,
                     GAME_HEIGHT / 2 + 20
                 );
-                ctx.textAlign = "left";
+            }
+
+            if (gameWon) {
+                ctx.fillStyle = "rgba(34, 197, 94, 0.8)";
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                ctx.fillStyle = "#fff";
+                ctx.font = "48px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("Victory!", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
+                ctx.font = "24px sans-serif";
+                ctx.fillText(
+                    `Final Score: ${scoreRef.current}`,
+                    GAME_WIDTH / 2,
+                    GAME_HEIGHT / 2 + 20
+                );
+                ctx.font = "18px sans-serif";
+                ctx.fillText(
+                    "Press Enter to play again",
+                    GAME_WIDTH / 2,
+                    GAME_HEIGHT / 2 + 60
+                );
+                return;
             }
 
             if (gameOver) {
-                ctx.fillStyle = "rgba(0,0,0,0.6)";
+                ctx.fillStyle = "rgba(0,0,0,0.7)";
                 ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                 ctx.fillStyle = "#fff";
-                ctx.font = "28px sans-serif";
+                ctx.font = "48px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText("Game Over", GAME_WIDTH / 2, GAME_HEIGHT / 2);
+                ctx.fillText("Game Over", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
+                ctx.font = "24px sans-serif";
+                ctx.fillText(
+                    `Final Score: ${scoreRef.current}`,
+                    GAME_WIDTH / 2,
+                    GAME_HEIGHT / 2 + 20
+                );
                 ctx.font = "18px sans-serif";
                 ctx.fillText(
                     "Press Enter to restart",
                     GAME_WIDTH / 2,
-                    GAME_HEIGHT / 2 + 30
+                    GAME_HEIGHT / 2 + 60
                 );
-                ctx.textAlign = "left";
                 return;
             }
 
@@ -321,7 +388,7 @@ export default function ArrowDodge2D() {
         requestAnimationFrame(update);
 
         const restart = (e: KeyboardEvent) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && (gameOver || gameWon)) {
                 setStarted(false);
                 setTimeout(() => setStarted(true), 50);
             }
@@ -337,24 +404,35 @@ export default function ArrowDodge2D() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100">
+            <Link
+                href="/options"
+                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-white text-slate-700 font-medium shadow hover:bg-slate-50 transition"
+            >
+                ← Back
+            </Link>
+            <div className="mb-4 text-center">
+                <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                    Space Invaders 👾
+                </h1>
+            </div>
             <div className="relative">
                 <canvas
                     ref={canvasRef}
-                    className="border border-slate-300 rounded-lg shadow"
+                    className="border-4 border-slate-400 rounded-lg shadow-xl"
                 />
                 {!started && !countdown && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <button
                             onClick={() => setStarted(true)}
-                            className="rounded-full bg-blue-500 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-blue-600 hover:scale-105 transition"
+                            className="rounded-full bg-green-500 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-green-600 hover:scale-105 transition"
                         >
-                            Start
+                            Start Game
                         </button>
                     </div>
                 )}
             </div>
-            <p className="mt-3 text-slate-600 text-sm">
-                Use arrow keys to move and avoid squares!
+            <p className="mt-4 text-slate-600 text-sm">
+                Arrow keys to move • Spacebar to shoot
             </p>
         </div>
     );

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { GAME_WIDTH, GAME_HEIGHT } from "@/utils/constants";
+import Link from "next/link";
 
 const LANES = 5;
 const TILE_WIDTH = GAME_WIDTH / LANES;
@@ -203,6 +204,77 @@ export default function Piano() {
         return () => clearInterval(timer);
     }, [isRunning, isGameOver, isWin]);
 
+    // Preview setup - show tiles before starting
+    useEffect(() => {
+        if (started) return;
+        let app: PIXI.Application | null = null;
+        let disposed = false;
+
+        const setupPreview = async () => {
+            const instance = new PIXI.Application();
+            await instance.init({
+                width: GAME_WIDTH,
+                height: GAME_HEIGHT,
+                background: "white",
+                antialias: true,
+            });
+            if (disposed) return;
+            canvasRef.current!.innerHTML = "";
+            canvasRef.current!.appendChild(instance.canvas);
+            app = instance;
+
+            // Background
+            const bgRect = new PIXI.Graphics();
+            bgRect.fill(0xf8fafc);
+            bgRect.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            app.stage.addChild(bgRect);
+
+            // Lane dividers
+            for (let i = 1; i < LANES; i++) {
+                const d = new PIXI.Graphics();
+                d.setStrokeStyle({ width: 2, color: 0xe2e8f0 });
+                d.moveTo(i * TILE_WIDTH, 0);
+                d.lineTo(i * TILE_WIDTH, GAME_HEIGHT);
+                d.stroke();
+                app.stage.addChild(d);
+            }
+
+            // Hit zone line
+            const hitZoneLine = new PIXI.Graphics();
+            hitZoneLine.setStrokeStyle({ width: 3, color: 0x10b981 });
+            hitZoneLine.moveTo(0, GAME_HEIGHT - HIT_ZONE_HEIGHT);
+            hitZoneLine.lineTo(GAME_WIDTH, GAME_HEIGHT - HIT_ZONE_HEIGHT);
+            hitZoneLine.stroke();
+            app.stage.addChild(hitZoneLine);
+
+            // Preview tiles - spread across lanes
+            const usedLanes = new Set<number>();
+            const previewCount = 3;
+            for (let i = 0; i < previewCount; i++) {
+                let lane;
+                do {
+                    lane = Math.floor(Math.random() * LANES);
+                } while (usedLanes.has(lane));
+                usedLanes.add(lane);
+
+                const tile = new PIXI.Graphics();
+                tile.beginFill(0x0f172a);
+                tile.drawRoundedRect(0, 0, TILE_WIDTH - 12, TILE_HEIGHT, 10);
+                tile.endFill();
+                tile.x = lane * TILE_WIDTH + 6;
+                tile.y = GAME_HEIGHT / 2 - TILE_HEIGHT * (i + 1) * 1.5;
+                app.stage.addChild(tile);
+            }
+        };
+
+        setupPreview();
+
+        return () => {
+            disposed = true;
+            app?.destroy(true, { children: true });
+        };
+    }, [started]);
+
     // Setup PIXI once per game
     useEffect(() => {
         if (!started) return;
@@ -379,6 +451,12 @@ export default function Piano() {
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100">
+            <Link
+                href="/options"
+                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-white text-slate-700 font-medium shadow hover:bg-slate-50 transition"
+            >
+                ← Back
+            </Link>
             <div className="relative">
                 <div
                     ref={canvasRef}
@@ -434,10 +512,10 @@ export default function Piano() {
                     </div>
                 )}
                 {!started && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/70 text-white">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm">
                         <button
                             onClick={() => setStarted(true)}
-                            className="rounded-full bg-white text-slate-900 px-8 py-4 text-xl font-semibold shadow hover:scale-105 transition"
+                            className="rounded-full bg-white text-slate-900 px-8 py-4 text-xl font-semibold shadow-lg hover:scale-105 transition"
                         >
                             Start
                         </button>

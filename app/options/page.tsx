@@ -36,26 +36,21 @@ export default function Options() {
                         action.
                     </p>
                 </div>
-                <div className="grid w-full gap-6 sm:grid-cols-2">
+                <div className="grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <GameButton
                         href="/piano"
-                        title="Piano Tiles"
-                        description="Tap the falling notes. Five lanes, fast reflexes."
+                        title="🎹 Piano Tiles"
+                        description="Tap the falling tiles in rhythm to Jingle Bells!"
                     />
                     <GameButton
-                        href="/memory"
-                        title="Memory Match"
-                        description="Flip the cards and remember the pairs."
+                        href="/arrow-run"
+                        title="👾 Space Invaders"
+                        description="Shoot the alien invaders before they reach Earth!"
                     />
                     <GameButton
-                        href="/stacker"
-                        title="Sky Stacker"
-                        description="Stack the blocks perfectly to reach the top."
-                    />
-                    <GameButton
-                        href="/orbit"
-                        title="Orbital Dodge"
-                        description="Slide around the orbit and dodge incoming meteors."
+                        href="/dinosaur"
+                        title="🦖 Number Dino Jump"
+                        description="Press the correct number to jump over obstacles!"
                     />
                 </div>
             </main>
