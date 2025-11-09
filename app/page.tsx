@@ -124,8 +124,8 @@ export default function Home() {
       router.push("/options");
     } else if (normalized.includes("go to analytics")) {
       router.push("/analytics");
-    } else if (normalized.includes("go to arrow run")) {
-      router.push("/arrow-run");
+    } else if (normalized.includes("go to space invaders")) {
+      router.push("/space-invaders");
     }
   }, [finalText, router]);
 

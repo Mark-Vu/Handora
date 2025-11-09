@@ -43,7 +43,7 @@ export default function Options() {
                         description="Tap the falling tiles in rhythm to Jingle Bells!"
                     />
                     <GameButton
-                        href="/arrow-run"
+                        href="/space-invaders"
                         title="👾 Space Invaders"
                         description="Shoot the alien invaders before they reach Earth!"
                     />
