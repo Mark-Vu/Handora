@@ -7,10 +7,7 @@ export default function HandPanel() {
   const bt = useBluetoothHand({ throttleMs: 20 }); // namePrefix not used in the hook signature now
 
   setTimeout(() => {
-    const signals = [...bt.signals];
-    swap(signals, 1, 3);
-    swap(signals, 2, 4);
-    localStorage.setItem("signals", JSON.stringify(signals));
+    localStorage.setItem("signals", JSON.stringify(bt.signals));
   }, 10000);
 
   // Map status -> label + colors

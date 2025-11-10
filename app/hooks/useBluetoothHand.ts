@@ -86,6 +86,8 @@ export function useBluetoothHand({
     // 2) AS TEXT (streaming decode; may be partial line)
     const chunk = decoderRef.current.decode(u8, { stream: true });
     const data = chunk.trim().split(/\s+/).map(Number);
+    swap(data, 1, 3);
+    swap(data, 2, 4);
     console.log("Signal data:", data);
     setAngles(prev => {
       const next: Angles2D = prev.map(a => a.slice()) as Angles2D;
@@ -114,6 +116,12 @@ export function useBluetoothHand({
       setPackets(p => p + 1);
     }
   }, [throttleMs]);
+
+  function swap(arr: any, i: any, j: any) {
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
 
   // Helpful enumerator when UUIDs don’t match the firmware
   async function enumerateAll(server: BluetoothRemoteGATTServer) {
