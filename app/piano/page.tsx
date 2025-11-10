@@ -8,8 +8,8 @@ const LANES = 5;
 const TILE_WIDTH = GAME_WIDTH / LANES;
 const TILE_HEIGHT = 180;
 const MAX_MISSES = 3;
-const BASE_SPEED = 1;
-const SPEED_GAIN = 0.0;
+const BASE_SPEED = 4;
+const SPEED_GAIN = 0.1;
 const COUNTDOWN = ["3", "2", "1", "Start!"];
 const HIT_ZONE_HEIGHT = 150; // Threshold zone at bottom
 const GAME_DURATION = 145; // 2:25 in seconds
@@ -303,6 +303,7 @@ export default function Piano() {
         if (!started) return;
         let app: PIXI.Application | null = null;
         let disposed = false;
+        let keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
 
         const setup = async () => {
             const instance = new PIXI.Application();
@@ -457,6 +458,17 @@ export default function Piano() {
                 hit(lane);
             });
 
+            // Keyboard controls: 1-5 for lanes (thumb to pinky)
+            keyboardHandler = (e: KeyboardEvent) => {
+                if (!isRunningRef.current || isGameOverRef.current) return;
+                const key = e.key;
+                if (key >= "1" && key <= "5") {
+                    const lane = parseInt(key) - 1; // 1->0, 2->1, 3->2, 4->3, 5->4
+                    hit(lane);
+                }
+            };
+            window.addEventListener("keydown", keyboardHandler);
+
             // Spawn initial tiles - random and spread out
             const usedLanes = new Set<number>();
             const initialCount = Math.floor(Math.random() * 2) + 2;
@@ -484,14 +496,17 @@ export default function Piano() {
         return () => {
             disposed = true;
             app?.destroy(true, { children: true });
+            if (keyboardHandler) {
+                window.removeEventListener("keydown", keyboardHandler);
+            }
         };
     }, [started]);
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50">
             <Link
                 href="/options"
-                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-white text-slate-700 font-medium shadow hover:bg-slate-50 transition"
+                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 transition"
             >
                 ← Back
             </Link>
@@ -553,7 +568,7 @@ export default function Piano() {
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm">
                         <button
                             onClick={() => setStarted(true)}
-                            className="rounded-full bg-white text-slate-900 px-8 py-4 text-xl font-semibold shadow-lg hover:scale-105 transition"
+                            className="rounded-full bg-emerald-600 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-emerald-700 hover:scale-105 transition"
                         >
                             Start
                         </button>
