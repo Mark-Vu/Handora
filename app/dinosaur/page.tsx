@@ -2,6 +2,7 @@
 import { DINO_GAME_HEIGHT, DINO_GAME_WIDTH } from "@/utils/constants";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useBluetoothHand } from "../hooks/useBluetoothHand";
 
 const W = DINO_GAME_WIDTH;
 const H = DINO_GAME_HEIGHT;
@@ -27,6 +28,46 @@ export default function DinoJump() {
     const [countdown, setCountdown] = useState<string | null>(null);
     const scoreRef = useRef(0);
     const countdownRef = useRef<string | null>(null);
+
+    // Bluetooth glove integration
+    const bt = useBluetoothHand({ throttleMs: 20 });
+    const [thresholdSignals, setThresholdSignals] = useState<number[]>([]);
+    const jumpRef = useRef<((fingerNum: number) => void) | null>(null);
+    const thresholdSignalsRef = useRef<number[]>([]);
+
+    // Load calibration signals from localStorage
+    useEffect(() => {
+        const stored = localStorage.getItem("signals");
+        if (stored) {
+            try {
+                const signals = JSON.parse(stored);
+                setThresholdSignals(signals.slice(0, 5));
+                thresholdSignalsRef.current = signals.slice(0, 5);
+            } catch (e) {
+                console.error("Failed to load calibration signals", e);
+            }
+        }
+    }, []);
+
+    // Monitor Bluetooth live data continuously with polling
+    useEffect(() => {
+        if (!running) return;
+
+        const checkFingers = () => {
+            if (!jumpRef.current || thresholdSignalsRef.current.length === 0)
+                return;
+
+            for (let i = 0; i < 5; i++) {
+                if (bt.liveData[i] <= thresholdSignalsRef.current[i]) {
+                    jumpRef.current(i + 1); // Fingers are numbered 1-5
+                }
+            }
+        };
+
+        // Check every 50ms for finger presses
+        const interval = setInterval(checkFingers, 50);
+        return () => clearInterval(interval);
+    }, [running, bt.liveData]);
 
     // Draw initial state
     useEffect(() => {
@@ -132,8 +173,8 @@ export default function DinoJump() {
 
         startCountdown();
 
-        // ✅ Number key controls jump
-        const handleKeyPress = (e: KeyboardEvent) => {
+        // Jump logic function
+        const tryJump = (num: number) => {
             if (gameOver || !gameStarted) return;
 
             // Find nearest obstacle ahead
@@ -142,10 +183,20 @@ export default function DinoJump() {
             );
             if (!upcoming) return;
 
-            // If correct number pressed, jump
-            if (e.key === upcoming.num.toString()) {
+            // If correct number, jump
+            if (num === upcoming.num) {
                 const onGround = dinoY >= GROUND_Y - DINO_HEIGHT - 0.5;
                 if (onGround) velY = -14; // jump impulse
+            }
+        };
+
+        // Make jump function accessible to Bluetooth effect
+        jumpRef.current = tryJump;
+
+        // ✅ Number key controls jump
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.key >= "1" && e.key <= "5") {
+                tryJump(parseInt(e.key));
             }
         };
 
@@ -305,6 +356,7 @@ export default function DinoJump() {
         return () => {
             window.removeEventListener("keydown", handleKeyPress);
             window.removeEventListener("keydown", restart);
+            jumpRef.current = null;
         };
     }, [running]);
 

@@ -4,6 +4,7 @@ import * as PIXI from "pixi.js";
 import { GAME_WIDTH, GAME_HEIGHT } from "@/utils/constants";
 import Link from "next/link";
 import { useBluetoothHand } from "../hooks/useBluetoothHand";
+import { useAppStore } from "@/app/store";
 
 const LANES = 5;
 const TILE_WIDTH = GAME_WIDTH / LANES;
@@ -111,6 +112,7 @@ export default function Piano() {
     const tiles = useRef<{ lane: number; graphic: PIXI.Graphics }[]>([]);
     const spawnTimer = useRef(0);
     const speed = useRef(BASE_SPEED);
+    const { liveData } = useAppStore();
 
     const [score, setScore] = useState(0);
     const [misses, setMisses] = useState(0);
@@ -129,8 +131,6 @@ export default function Piano() {
     // Bluetooth glove integration
     const bt = useBluetoothHand({ throttleMs: 20 });
     const [thresholdSignals, setThresholdSignals] = useState<number[]>([]);
-    const lastTapTime = useRef<number[]>([0, 0, 0, 0, 0]); // Track last tap time for each finger
-    const TAP_COOLDOWN = 200; // ms cooldown between taps for same finger
     const hitRef = useRef<((lane: number) => void) | null>(null);
 
     // Load calibration signals from localStorage
@@ -147,28 +147,22 @@ export default function Piano() {
         }
     }, []);
 
-    // Monitor Bluetooth signals and trigger hits when finger crosses threshold
+    // Monitor Bluetooth live data continuously with polling
     useEffect(() => {
-        if (
-            !isRunning ||
-            !bt.connected ||
-            thresholdSignals.length === 0 ||
-            !hitRef.current
-        )
-            return;
+        if (!isRunning) return;
 
-        const now = Date.now();
+        if (!hitRef.current) return;
+        console.log("liveData", liveData);
+
         for (let i = 0; i < 5; i++) {
-            // Check if current signal >= threshold AND cooldown has passed
-            if (
-                bt.signals[i] >= thresholdSignals[i] &&
-                now - lastTapTime.current[i] > TAP_COOLDOWN
-            ) {
-                lastTapTime.current[i] = now;
+            // Check if current live data <= threshold
+            if (liveData[i] <= thresholdSignals[i]) {
+                console.log("liveData", liveData);
+                console.log("thresholdSignals", thresholdSignals);
                 hitRef.current(i); // Trigger hit for lane i
             }
         }
-    }, [bt.signals, bt.connected, isRunning, thresholdSignals, TAP_COOLDOWN]);
+    }, [isRunning, liveData]);
 
     // Load sounds once
     useEffect(() => {
@@ -439,6 +433,7 @@ export default function Piano() {
 
                 if (!target) return; // Don't count as miss if no tile in hit zone
 
+                // Flash on the tile
                 const flash = new PIXI.Graphics();
                 flash.beginFill(0x38bdf8, 0.25);
                 flash.drawRoundedRect(0, 0, TILE_WIDTH - 12, TILE_HEIGHT, 10);
@@ -449,6 +444,19 @@ export default function Piano() {
                 setTimeout(() => {
                     app!.stage.removeChild(flash);
                     flash.destroy();
+                }, 120);
+
+                // Red flash in hand area below hit zone
+                const handFlash = new PIXI.Graphics();
+                handFlash.beginFill(0xff0000, 0.4); // Red with opacity
+                handFlash.drawRect(0, 0, TILE_WIDTH, HIT_ZONE_HEIGHT);
+                handFlash.endFill();
+                handFlash.x = lane * TILE_WIDTH;
+                handFlash.y = GAME_HEIGHT - HIT_ZONE_HEIGHT;
+                app!.stage.addChild(handFlash);
+                setTimeout(() => {
+                    app!.stage.removeChild(handFlash);
+                    handFlash.destroy();
                 }, 120);
 
                 const note =

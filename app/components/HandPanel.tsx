@@ -10,8 +10,6 @@ export default function HandPanel({ onConnect }: { onConnect?: () => void }) {
 
     setTimeout(() => {
         const signals = [...bt.signals];
-        swap(signals, 1, 3);
-        swap(signals, 2, 4);
         localStorage.setItem("signals", JSON.stringify(signals));
     }, 10000);
 
@@ -79,12 +77,6 @@ export default function HandPanel({ onConnect }: { onConnect?: () => void }) {
     };
 
     const s = statusMap[bt.status];
-
-    function swap(arr: any, i: any, j: any) {
-        const temp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = temp;
-    }
 
     return (
         <section className="panel">

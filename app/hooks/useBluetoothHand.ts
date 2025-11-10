@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAppStore } from "@/app/store";
+import { calculateAverage } from "@/utils/constants";
 
 // ✅ Nordic UART Service (NUS)
 const NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
@@ -53,6 +55,8 @@ export function useBluetoothHand({
     throttleMs?: number;
     firstPacketTimeoutMs?: number;
 }) {
+    const { setLiveData } = useAppStore();
+
     const [status, setStatus] = useState<Status>("idle");
     const [connected, setConnected] = useState(false);
     const [angles, setAngles] = useState<Angles2D>([
@@ -87,7 +91,7 @@ export function useBluetoothHand({
     };
 
     useEffect(() => {
-        // signals are 60% of the maximum seen so far in each channel
+        // signals are 60% of the minimum seen so far in each channel
         setSignals((prev) => {
             const out = [...prev] as Signals;
             for (let j = 0; j < 8; j++) {
@@ -96,8 +100,8 @@ export function useBluetoothHand({
                     out[j] = 0;
                     continue;
                 } // guard empties
-                const max = Math.max(...arr);
-                out[j] = (Number.isFinite(max) ? max : 0) * 0.6;
+                const min = Math.min(...arr);
+                out[j] = (Number.isFinite(min) ? min : 0) * 1.15;
             }
             return out as Signals;
         });
@@ -125,9 +129,14 @@ export function useBluetoothHand({
             // 2) AS TEXT (streaming decode; may be partial line)
             const chunk = decoderRef.current.decode(u8, { stream: true });
             const data = chunk.trim().split(/\s+/).map(Number);
-            swap(data, 1, 3);
-            swap(data, 2, 4);
+            const temp = data[0];
+            data[0] = data[1];
+            data[1] = data[2];
+            data[2] = data[4];
+            data[4] = temp;
             console.log("Signal data:", data);
+            setLiveData(data);
+
             setAngles((prev) => {
                 const next: Angles2D = prev.map((a) => a.slice()) as Angles2D;
                 for (let i = 0; i < 8; i++) {
@@ -157,12 +166,6 @@ export function useBluetoothHand({
         },
         [throttleMs]
     );
-
-    function swap(arr: any, i: any, j: any) {
-        const temp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = temp;
-    }
 
     // Helpful enumerator when UUIDs don’t match the firmware
     async function enumerateAll(server: BluetoothRemoteGATTServer) {
