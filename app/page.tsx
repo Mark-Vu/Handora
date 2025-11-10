@@ -1,237 +1,189 @@
-"use client";
-
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Home() {
-  const router = useRouter();
+    return (
+        <div className="min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50">
+            {/* Hero Section */}
+            <main className="relative flex min-h-screen flex-col items-center justify-center px-6 py-20">
+                {/* Background decorative elements */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl"></div>
+                    <div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-teal-200/30 blur-3xl"></div>
+                </div>
 
-  const [supported, setSupported] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [finalText, setFinalText] = useState("");
-  const [interimText, setInterimText] = useState("");
+                <div className="relative z-10 max-w-5xl mx-auto text-center">
+                    {/* Logo/Brand */}
+                    <div className="mb-8">
+                        <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-emerald-100">
+                            <div className="text-3xl">🤲</div>
+                            <h1 className="text-2xl font-bold text-emerald-900">
+                                Handora
+                            </h1>
+                        </div>
+                    </div>
 
-  const recognitionRef = useRef<any>(null);
-  const shouldListenRef = useRef(true);
+                    {/* Main Headline */}
+                    <h2 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
+                        Rebuild Hand Strength
+                        <br />
+                        <span className="bg-linear-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                            Through Play
+                        </span>
+                    </h2>
 
-  // --- typing animation state for "Listening…" (slower cadence) ---
-  const baseMsg = "Listening...";
-  const [typed, setTyped] = useState("");
-  const typingTimerRef = useRef<number | null>(null);
+                    {/* Subheadline */}
+                    <p className="text-xl md:text-2xl text-slate-700 mb-8 max-w-3xl mx-auto leading-relaxed">
+                        A rehabilitation system designed for people recovering
+                        from hand paralysis. Smart gloves + engaging games =
+                        effective therapy.
+                    </p>
 
-  // Type/delete loop for "Listening..."
-  useEffect(() => {
-    if (!listening) {
-      if (typingTimerRef.current) window.clearInterval(typingTimerRef.current);
-      setTyped("");
-      return;
-    }
-    let i = 0;
-    let deleting = false;
-    let cooldown = 0;
+                    {/* Problem Statement */}
+                    <div className="mb-12 p-6 rounded-2xl bg-white/60 backdrop-blur-sm border border-emerald-100 max-w-2xl mx-auto">
+                        <p className="text-lg text-slate-600 italic">
+                            &ldquo;Traditional hand therapy can be repetitive
+                            and unmotivating. We&rsquo;re making rehabilitation
+                            engaging, measurable, and effective.&rdquo;
+                        </p>
+                    </div>
 
-    const step = () => {
-      if (cooldown > 0) {
-        cooldown -= 1;
-        return;
-      }
-      if (!deleting) {
-        i++;
-        setTyped(baseMsg.slice(0, i));
-        if (i >= baseMsg.length) {
-          i = baseMsg.length;
-          deleting = true;
-          cooldown = 4; // hold full text a bit
-        }
-      } else {
-        i--;
-        setTyped(baseMsg.slice(0, i));
-        if (i <= 0) {
-          i = 0;
-          deleting = false;
-          cooldown = 4; // hold empty a bit
-        }
-      }
-    };
+                    {/* CTA Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+                        <Link
+                            href="/onboarding"
+                            className="group px-8 py-4 rounded-full bg-emerald-600 text-white text-lg font-semibold shadow-xl hover:bg-emerald-700 hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+                        >
+                            Start Your Recovery
+                            <span className="text-2xl group-hover:translate-x-1 transition-transform">
+                                →
+                            </span>
+                        </Link>
+                        <Link
+                            href="/options"
+                            className="px-8 py-4 rounded-full bg-white text-emerald-700 text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 border-2 border-emerald-200"
+                        >
+                            Preview Games
+                        </Link>
+                    </div>
 
-    typingTimerRef.current = window.setInterval(step, 220); // slower letters
-    return () => {
-      if (typingTimerRef.current) window.clearInterval(typingTimerRef.current);
-    };
-  }, [listening]);
+                    {/* How It Works */}
+                    <div className="grid md:grid-cols-3 gap-6 mt-20 max-w-4xl mx-auto">
+                        <div className="p-6 rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg border border-emerald-100 hover:scale-105 transition-transform">
+                            <div className="text-4xl mb-4">🧤</div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">
+                                1. Wear Smart Gloves
+                            </h3>
+                            <p className="text-slate-600">
+                                Our sensors track every finger movement and hand
+                                position in real-time.
+                            </p>
+                        </div>
 
-  // Speech setup
-  useEffect(() => {
-    const SR =
-      typeof window !== "undefined" &&
-      ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+                        <div className="p-6 rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg border border-teal-100 hover:scale-105 transition-transform">
+                            <div className="text-4xl mb-4">🎮</div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">
+                                2. Play Therapeutic Games
+                            </h3>
+                            <p className="text-slate-600">
+                                Engage with games designed by therapists to
+                                target specific hand movements.
+                            </p>
+                        </div>
 
-    if (!SR) {
-      setSupported(false);
-      return;
-    }
-    setSupported(true);
+                        <div className="p-6 rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg border border-cyan-100 hover:scale-105 transition-transform">
+                            <div className="text-4xl mb-4">📊</div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">
+                                3. Track Progress
+                            </h3>
+                            <p className="text-slate-600">
+                                Monitor your improvement with detailed metrics
+                                and celebrate milestones.
+                            </p>
+                        </div>
+                    </div>
 
-    const r = new SR();
-    r.lang = "en-US";
-    r.continuous = true;
-    r.interimResults = true;
-    r.maxAlternatives = 1;
+                    {/* Features Section */}
+                    <div className="mt-20 p-8 rounded-3xl bg-linear-to-br from-emerald-100/50 to-teal-100/50 backdrop-blur-sm border border-emerald-200 max-w-4xl mx-auto">
+                        <h3 className="text-3xl font-bold text-slate-900 mb-6">
+                            Why Handora Works
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-6 text-left">
+                            <div className="flex gap-3">
+                                <div className="text-2xl">✓</div>
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 mb-1">
+                                        Personalized Calibration
+                                    </h4>
+                                    <p className="text-slate-600">
+                                        We assess your current range of motion
+                                        and adapt difficulty accordingly.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="text-2xl">✓</div>
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 mb-1">
+                                        Guided Experience
+                                    </h4>
+                                    <p className="text-slate-600">
+                                        Dora, your AI assistant, minimizes
+                                        keyboard use and guides you through
+                                        every step.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="text-2xl">✓</div>
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 mb-1">
+                                        Measurable Results
+                                    </h4>
+                                    <p className="text-slate-600">
+                                        Track strength, range of motion, and
+                                        response time over weeks.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="text-2xl">✓</div>
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 mb-1">
+                                        Fun & Engaging
+                                    </h4>
+                                    <p className="text-slate-600">
+                                        Turn tedious exercises into enjoyable
+                                        challenges that you&rsquo;ll want to do
+                                        daily.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    r.onresult = (e: SpeechRecognitionEvent) => {
-      let interim = "";
-      let additions = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const transcript = e.results[i][0].transcript;
-        if (e.results[i].isFinal) additions += transcript;
-        else interim += transcript;
-      }
-      if (additions) setFinalText((prev) => prev + additions);
-      setInterimText(interim);
-    };
+                    {/* Final CTA */}
+                    <div className="mt-16">
+                        <p className="text-lg text-slate-600 mb-4">
+                            Ready to begin your recovery journey?
+                        </p>
+                        <Link
+                            href="/onboarding"
+                            className="inline-flex items-center gap-2 px-10 py-5 rounded-full bg-emerald-600 text-white text-xl font-bold shadow-2xl hover:bg-emerald-700 hover:scale-105 transition-all duration-300"
+                        >
+                            Get Started Now
+                            <span className="text-3xl">→</span>
+                        </Link>
+                    </div>
+                </div>
+            </main>
 
-    r.onerror = () => setListening(false);
-
-    r.onend = () => {
-      setListening(false);
-      if (shouldListenRef.current) {
-        try {
-          r.start();
-          setListening(true);
-        } catch {}
-      }
-    };
-
-    recognitionRef.current = r;
-
-    try {
-      r.start();
-      setListening(true);
-    } catch {}
-
-    return () => {
-      shouldListenRef.current = false;
-      try {
-        r.abort();
-      } catch {}
-    };
-  }, []);
-
-  useEffect(() => {
-    const normalized = finalText.toLowerCase();
-    if (normalized.includes("go to options")) {
-      router.push("/options");
-    } else if (normalized.includes("go to analytics")) {
-      router.push("/analytics");
-    } else if (normalized.includes("go to space invaders")) {
-      router.push("/space-invaders");
-    } else if (normalized.includes("go to dinosaur")) {
-      router.push("/dinosaur");
-    }
-  }, [finalText, router]);
-
-  return (
-    <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: "2rem", position: "relative", background: "white", color: "#1a1a1a"  }}>
-      {/* Main UI */}
-      <div style={{ maxWidth: 640, width: "100%", display: "grid", gap: "1rem" }}>
-        <h1
-          style={{
-            fontSize: "2.6rem",
-            fontWeight: 800,
-            textAlign: "center",
-            lineHeight: 1.25,
-            letterSpacing: "-0.02em",
-            background:
-              "linear-gradient(90deg, #7f3ef0 0%, #6a5afc 33%, #3f8bfe 66%, #27b4ff 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            marginBottom: "1rem",
-          }}
-        >
-          Therapy Backed by Science. <br /> Powered by Play.
-        </h1>
-
-        {!supported && (
-          <p>Your browser doesn’t support the Web Speech API. Try Chrome/Edge, or use a server-side STT route.</p>
-        )}
-
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minHeight: 24 }}>
-          {listening ? (
-            <>
-              {/* Bounce loader */}
-              <div className="bounce">
-                <span className="dot" />
-                <span className="dot" />
-                <span className="dot" />
-              </div>
-              {/* Typing / disappearing loop */}
-              <span
-                style={{
-                  fontWeight: 600,
-                  letterSpacing: "0.02em",
-                  background:
-                    "linear-gradient(90deg,#7f3ef0 0%,#6a5afc 33%,#3f8bfe 66%,#27b4ff 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  minWidth: 130,
-                  display: "inline-block",
-                }}
-                aria-live="polite"
-              >
-                {typed}
-              </span>
-            </>
-          ) : (
-            <span style={{ opacity: 0.7 }}>Not listening</span>
-          )}
+            {/* Footer */}
+            <footer className="relative z-10 py-8 text-center text-slate-600 border-t border-emerald-100 bg-white/50">
+                <p className="text-sm">
+                    Handora - Empowering recovery through innovative
+                    rehabilitation technology
+                </p>
+            </footer>
         </div>
-
-        <div
-          style={{
-            padding: "1rem",
-            border: "1px solid #ddd",
-            borderRadius: 12,
-            minHeight: 140,
-            background: "white",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.05)"
-          }}
-        >
-          <strong>Transcript</strong>
-          <p style={{ whiteSpace: "pre-wrap", marginTop: "0.5rem", color: "black" }}>
-            {finalText}
-            <span style={{ opacity: 0.5 }}>{interimText}</span>
-          </p>
-        </div>
-
-        <small>
-          Tip: Speak clearly. Interim (lighter) text becomes final after short pauses. Reload the page to clear.
-        </small>
-      </div>
-
-      {/* component-scoped styles */}
-      <style jsx>{`
-        /* Bounce loader */
-        .bounce {
-          display: inline-flex;
-          gap: 6px;
-          height: 14px;
-          align-items: flex-end;
-        }
-        .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #8a5bff, #5cc8ff);
-          animation: bounce 0.9s infinite ease-in-out;
-        }
-        .dot:nth-child(2) { animation-delay: 0.15s; }
-        .dot:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes bounce {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.8; }
-          40% { transform: translateY(-6px); opacity: 1; }
-        }
-      `}</style>
-    </main>
-  );
+    );
 }
