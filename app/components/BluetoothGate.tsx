@@ -3,41 +3,49 @@
 import { ReactNode, useEffect, useState } from "react";
 
 export default function BluetoothGate({ children }: { children: ReactNode }) {
-  const [supported, setSupported] = useState<boolean | null>(null);
+    const [supported, setSupported] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    setSupported(typeof navigator !== "undefined" && !!(navigator as any).bluetooth);
-  }, []);
+    useEffect(() => {
+        setSupported(
+            typeof navigator !== "undefined" && !!(navigator as any).bluetooth
+        );
+    }, []);
 
-  if (supported === null) {
-    return (
-      <div className="card">
-        <div className="title">
-          <span className="dot dot-wait" /> Checking Web Bluetooth…
-        </div>
-        <p>Please wait while we detect browser capabilities.</p>
-        <style jsx>{styles}</style>
-      </div>
-    );
-  }
+    if (supported === null) {
+        return (
+            <div className="card">
+                <div className="title">
+                    <span className="dot dot-wait" /> Checking Web Bluetooth…
+                </div>
+                <p>Please wait while we detect browser capabilities.</p>
+                <style jsx>{styles}</style>
+            </div>
+        );
+    }
 
-  if (!supported) {
-    return (
-      <div className="card warn">
-        <div className="title">
-          <span className="dot dot-bad" /> Web Bluetooth isn’t available
-        </div>
-        <ul className="tips">
-          <li>Use <b>Chrome</b> or <b>Edge</b>.</li>
-          <li>Serve over <b>HTTPS</b> (or <code>http://localhost</code> in dev).</li>
-          <li>Ensure your device supports BLE and is powered on.</li>
-        </ul>
-        <style jsx>{styles}</style>
-      </div>
-    );
-  }
+    if (!supported) {
+        return (
+            <div className="card warn">
+                <div className="title">
+                    <span className="dot dot-bad" /> Web Bluetooth isn’t
+                    available
+                </div>
+                <ul className="tips">
+                    <li>
+                        Use <b>Chrome</b> or <b>Edge</b>.
+                    </li>
+                    <li>
+                        Serve over <b>HTTPS</b> (or{" "}
+                        <code>http://localhost</code> in dev).
+                    </li>
+                    <li>Ensure your device supports BLE and is powered on.</li>
+                </ul>
+                <style jsx>{styles}</style>
+            </div>
+        );
+    }
 
-  return <>{children}</>;
+    return <>{children}</>;
 }
 
 const styles = `
@@ -73,7 +81,7 @@ p, .tips { margin: 8px 0 0; opacity: 0.9; }
   display: inline-block;
   box-shadow: 0 0 0 3px #e5e7eb;
 }
-.dot-wait { background: #06b6d4; animation: pulse 1.2s ease-in-out infinite; }
+.dot-wait { background: #14b8a6; animation: pulse 1.2s ease-in-out infinite; }
 .dot-bad  { background: #ef4444; }
 @keyframes pulse { 50% { transform: scale(0.6); opacity: 0.6; } }
 `;
