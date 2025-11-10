@@ -133,6 +133,14 @@ export default function Piano() {
         notes.current = NOTES.map(
             (n) => new Audio(`/sounds/piano-notes/${n}.mp3`)
         );
+
+        // Cleanup: stop music when component unmounts (user navigates away)
+        return () => {
+            if (bg.current) {
+                bg.current.pause();
+                bg.current.currentTime = 0;
+            }
+        };
     }, []);
 
     const handleRestart = () => {
@@ -247,6 +255,21 @@ export default function Piano() {
             hitZoneLine.stroke();
             app.stage.addChild(hitZoneLine);
 
+            // Hand images below hit zone (left to right: thumb, index, middle, ring, pinky)
+            const handImages = ["thumb", "index", "middle", "ring", "pinky"];
+            const handSize = Math.min(TILE_WIDTH * 0.7, 80);
+            for (let i = 0; i < LANES; i++) {
+                const handTexture = await PIXI.Assets.load(
+                    `/images/piano/${handImages[i]}.png`
+                );
+                const handSprite = new PIXI.Sprite(handTexture);
+                handSprite.width = handSize;
+                handSprite.height = handSize;
+                handSprite.x = i * TILE_WIDTH + (TILE_WIDTH - handSize) / 2;
+                handSprite.y = GAME_HEIGHT - HIT_ZONE_HEIGHT + 10;
+                app.stage.addChild(handSprite);
+            }
+
             // Preview tiles - spread across lanes
             const usedLanes = new Set<number>();
             const previewCount = 3;
@@ -315,6 +338,21 @@ export default function Piano() {
             hitZoneLine.lineTo(GAME_WIDTH, GAME_HEIGHT - HIT_ZONE_HEIGHT);
             hitZoneLine.stroke();
             app.stage.addChild(hitZoneLine);
+
+            // Hand images below hit zone (left to right: thumb, index, middle, ring, pinky)
+            const handImages = ["thumb", "index", "middle", "ring", "pinky"];
+            const handSize = Math.min(TILE_WIDTH * 0.7, 80);
+            for (let i = 0; i < LANES; i++) {
+                const handTexture = await PIXI.Assets.load(
+                    `/images/piano/${handImages[i]}.png`
+                );
+                const handSprite = new PIXI.Sprite(handTexture);
+                handSprite.width = handSize;
+                handSprite.height = handSize;
+                handSprite.x = i * TILE_WIDTH + (TILE_WIDTH - handSize) / 2;
+                handSprite.y = GAME_HEIGHT - HIT_ZONE_HEIGHT + 10;
+                app.stage.addChild(handSprite);
+            }
 
             const spawnTile = () => {
                 const lane = Math.floor(Math.random() * LANES);
@@ -401,7 +439,7 @@ export default function Piano() {
                 }
                 tiles.current.forEach((tile) => {
                     tile.graphic.y += speed.current * d;
-                    if (tile.graphic.y > GAME_HEIGHT + TILE_HEIGHT) miss(tile);
+                    if (tile.graphic.y > GAME_HEIGHT) miss(tile);
                 });
             };
 
