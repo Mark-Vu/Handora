@@ -4,7 +4,6 @@ import { GAME_WIDTH, GAME_HEIGHT } from "@/utils/constants";
 import Link from "next/link";
 
 const ALIEN_SIZE = 35;
-const BULLET_SIZE = 5;
 const PLAYER_SPEED = 6;
 const BULLET_SPEED = 8;
 const ALIEN_BULLET_SPEED = 4;
@@ -20,12 +19,20 @@ type Alien = {
     alive: boolean;
 };
 
+type Explosion = {
+    x: number;
+    y: number;
+    frame: number;
+};
+
 export default function SpaceInvaders() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [started, setStarted] = useState(false);
     const [score, setScore] = useState(0);
+    const [lives, setLives] = useState(3);
     const [countdown, setCountdown] = useState<string | null>(null);
     const scoreRef = useRef(0);
+    const livesRef = useRef(3);
     const countdownRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -38,7 +45,11 @@ export default function SpaceInvaders() {
         if (!started) {
             // Draw initial state
             const spaceBackground = new Image();
-            spaceBackground.src = "/images/space-background.png";
+            spaceBackground.src = "/images/space-invader-bg.jpg";
+            const spaceshipImg = new Image();
+            spaceshipImg.src = "/images/spaceship.png";
+            const ufoImg = new Image();
+            ufoImg.src = "/images/ufo.png";
 
             const drawInitial = () => {
                 if (spaceBackground.complete) {
@@ -54,39 +65,59 @@ export default function SpaceInvaders() {
                     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                 }
 
-                // Draw player
-                ctx.fillStyle = "#22c55e";
-                ctx.beginPath();
-                ctx.moveTo(GAME_WIDTH / 2, GAME_HEIGHT - 60);
-                ctx.lineTo(GAME_WIDTH / 2 - 20, GAME_HEIGHT - 30);
-                ctx.lineTo(GAME_WIDTH / 2 + 20, GAME_HEIGHT - 30);
-                ctx.closePath();
-                ctx.fill();
+                // Draw player spaceship
+                if (spaceshipImg.complete) {
+                    ctx.drawImage(
+                        spaceshipImg,
+                        GAME_WIDTH / 2 - 25,
+                        GAME_HEIGHT - 80,
+                        50,
+                        50
+                    );
+                }
 
                 // Draw sample aliens
-                for (let i = 0; i < 5; i++) {
-                    const x = GAME_WIDTH / 2 - 100 + i * 50;
-                    const y = 100;
-                    ctx.fillStyle = "#ef4444";
-                    ctx.fillRect(x - ALIEN_SIZE / 2, y, ALIEN_SIZE, ALIEN_SIZE);
-                    ctx.fillStyle = "#fff";
-                    ctx.fillRect(x - 8, y + 10, 6, 6);
-                    ctx.fillRect(x + 2, y + 10, 6, 6);
+                if (ufoImg.complete) {
+                    for (let i = 0; i < 5; i++) {
+                        const x = GAME_WIDTH / 2 - 100 + i * 50;
+                        const y = 100;
+                        ctx.drawImage(
+                            ufoImg,
+                            x - ALIEN_SIZE / 2,
+                            y,
+                            ALIEN_SIZE,
+                            ALIEN_SIZE
+                        );
+                    }
                 }
             };
 
             drawInitial();
             spaceBackground.onload = drawInitial;
+            spaceshipImg.onload = drawInitial;
+            ufoImg.onload = drawInitial;
             return;
         }
 
         // Reset everything
         scoreRef.current = 0;
         setScore(0);
+        livesRef.current = 3;
+        setLives(3);
 
-        // Load background
+        // Load images
         const spaceBackground = new Image();
-        spaceBackground.src = "/images/space-background.png";
+        spaceBackground.src = "/images/space-invader-bg.jpg";
+        const spaceshipImg = new Image();
+        spaceshipImg.src = "/images/spaceship.png";
+        const ufoImg = new Image();
+        ufoImg.src = "/images/ufo.png";
+        const missileImg = new Image();
+        missileImg.src = "/images/missle_up.png";
+        const explosionImg = new Image();
+        explosionImg.src = "/images/explosion.png";
+        const heartImg = new Image();
+        heartImg.src = "/images/pixel-heart.webp";
 
         // Game state
         const player = {
@@ -97,31 +128,42 @@ export default function SpaceInvaders() {
         let playerBullets: Bullet[] = [];
         let alienBullets: Bullet[] = [];
         const aliens: Alien[] = [];
+        let explosions: Explosion[] = [];
         let alienDirection = 1;
         let alienMoveDown = false;
         let gameOver = false;
-        let gameWon = false;
         let frame = 0;
         let gameStarted = false;
         let canShoot = true;
+        let waveNumber = 0;
+        let alienSpeed = 30; // Base speed (frames between moves)
 
-        // Initialize aliens in a grid
-        const rows = 4;
-        const cols = 8;
-        const startX = 80;
-        const startY = 80;
-        const spacingX = 60;
-        const spacingY = 50;
+        // Function to spawn a new wave of aliens
+        function spawnWave() {
+            const rows = 4;
+            const cols = 8;
+            const startX = 80;
+            const startY = 80;
+            const spacingX = 60;
+            const spacingY = 50;
 
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-                aliens.push({
-                    x: startX + col * spacingX,
-                    y: startY + row * spacingY,
-                    alive: true,
-                });
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    aliens.push({
+                        x: startX + col * spacingX,
+                        y: startY + row * spacingY,
+                        alive: true,
+                    });
+                }
             }
+
+            // Increase difficulty with each wave
+            waveNumber++;
+            alienSpeed = Math.max(10, 30 - waveNumber * 2); // Speed up, minimum 10 frames
         }
+
+        // Initialize first wave
+        spawnWave();
 
         const keys: Record<string, boolean> = {};
         window.onkeydown = (e) => {
@@ -154,7 +196,7 @@ export default function SpaceInvaders() {
         startCountdown();
 
         function update() {
-            if (gameStarted && !gameOver && !gameWon) {
+            if (gameStarted && !gameOver) {
                 // Player movement
                 if (keys["ArrowLeft"]) player.x -= PLAYER_SPEED;
                 if (keys["ArrowRight"]) player.x += PLAYER_SPEED;
@@ -170,8 +212,9 @@ export default function SpaceInvaders() {
                 alienBullets.forEach((b) => (b.y += ALIEN_BULLET_SPEED));
                 alienBullets = alienBullets.filter((b) => b.y < GAME_HEIGHT);
 
-                // Aliens shoot randomly
-                if (frame % 60 === 0) {
+                // Aliens shoot randomly (more frequently as waves progress)
+                const shootFrequency = Math.max(30, 60 - waveNumber * 3);
+                if (frame % shootFrequency === 0) {
                     const aliveAliens = aliens.filter((a) => a.alive);
                     if (aliveAliens.length > 0) {
                         const shooter =
@@ -185,8 +228,8 @@ export default function SpaceInvaders() {
                     }
                 }
 
-                // Move aliens
-                if (frame % 30 === 0) {
+                // Move aliens (speed increases with each wave)
+                if (frame % alienSpeed === 0) {
                     if (alienMoveDown) {
                         aliens.forEach((a) => (a.y += 20));
                         alienMoveDown = false;
@@ -212,9 +255,12 @@ export default function SpaceInvaders() {
                     }
                 }
 
-                // Check bullet collisions with aliens
+                // Check bullet collisions with aliens (with splash damage)
                 playerBullets.forEach((bullet, bIndex) => {
-                    aliens.forEach((alien) => {
+                    let hitAlien: Alien | undefined = undefined;
+
+                    // Find directly hit alien
+                    for (const alien of aliens) {
                         if (
                             alien.alive &&
                             bullet.x > alien.x - ALIEN_SIZE / 2 &&
@@ -222,22 +268,77 @@ export default function SpaceInvaders() {
                             bullet.y > alien.y &&
                             bullet.y < alien.y + ALIEN_SIZE
                         ) {
-                            alien.alive = false;
-                            playerBullets.splice(bIndex, 1);
-                            scoreRef.current += 10;
-                            setScore(scoreRef.current);
+                            hitAlien = alien;
+                            break;
                         }
-                    });
+                    }
+
+                    if (hitAlien) {
+                        const hitX = hitAlien.x;
+                        const hitY = hitAlien.y;
+
+                        // Destroy the directly hit alien
+                        hitAlien.alive = false;
+                        playerBullets.splice(bIndex, 1);
+                        scoreRef.current += 10;
+                        setScore(scoreRef.current);
+
+                        // Add explosion
+                        explosions.push({
+                            x: hitX,
+                            y: hitY,
+                            frame: 0,
+                        });
+
+                        // Splash damage to nearby aliens (within 80 pixels)
+                        const splashRadius = 80;
+                        aliens.forEach((alien) => {
+                            if (
+                                alien.alive &&
+                                alien !== hitAlien &&
+                                Math.abs(alien.x - hitX) < splashRadius &&
+                                Math.abs(alien.y - hitY) < splashRadius
+                            ) {
+                                alien.alive = false;
+                                scoreRef.current += 5; // Bonus points for splash kills
+                                setScore(scoreRef.current);
+                                explosions.push({
+                                    x: alien.x,
+                                    y: alien.y,
+                                    frame: 0,
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // Update explosions
+                explosions = explosions.filter((e) => {
+                    e.frame++;
+                    return e.frame < 20; // Show explosion for 20 frames
                 });
 
                 // Check alien bullets hitting player
-                alienBullets.forEach((bullet) => {
+                alienBullets.forEach((bullet, bIndex) => {
                     if (
                         bullet.x > player.x - 20 &&
                         bullet.x < player.x + 20 &&
                         bullet.y > player.y - 10
                     ) {
-                        gameOver = true;
+                        // Remove the bullet
+                        alienBullets.splice(bIndex, 1);
+
+                        // Lose a life
+                        livesRef.current--;
+                        setLives(livesRef.current);
+
+                        // Add explosion at player
+                        explosions.push({ x: player.x, y: player.y, frame: 0 });
+
+                        // Check if game over
+                        if (livesRef.current <= 0) {
+                            gameOver = true;
+                        }
                     }
                 });
 
@@ -247,9 +348,10 @@ export default function SpaceInvaders() {
                     gameOver = true;
                 }
 
-                // Check win condition
+                // Spawn new wave when all aliens are destroyed
                 if (aliveAliens.length === 0) {
-                    gameWon = true;
+                    spawnWave();
+                    alienDirection = 1; // Reset direction
                 }
             }
 
@@ -261,53 +363,63 @@ export default function SpaceInvaders() {
                 ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
             }
 
-            // Draw player
-            ctx.fillStyle = "#22c55e";
-            ctx.beginPath();
-            ctx.moveTo(player.x, player.y - 10);
-            ctx.lineTo(player.x - 20, player.y + 10);
-            ctx.lineTo(player.x + 20, player.y + 10);
-            ctx.closePath();
-            ctx.fill();
-
-            // Draw aliens
-            aliens.forEach((alien) => {
-                if (alien.alive) {
-                    ctx.fillStyle = "#ef4444";
-                    ctx.fillRect(
-                        alien.x - ALIEN_SIZE / 2,
-                        alien.y,
-                        ALIEN_SIZE,
-                        ALIEN_SIZE
-                    );
-                    // Eyes
-                    ctx.fillStyle = "#fff";
-                    ctx.fillRect(alien.x - 8, alien.y + 10, 6, 6);
-                    ctx.fillRect(alien.x + 2, alien.y + 10, 6, 6);
-                }
-            });
-
-            // Draw player bullets
-            ctx.fillStyle = "#3b82f6";
-            playerBullets.forEach((b) => {
-                ctx.fillRect(
-                    b.x - BULLET_SIZE / 2,
-                    b.y,
-                    BULLET_SIZE,
-                    BULLET_SIZE * 2
+            // Draw player spaceship
+            if (spaceshipImg.complete && !gameOver) {
+                ctx.drawImage(
+                    spaceshipImg,
+                    player.x - 25,
+                    player.y - 25,
+                    50,
+                    50
                 );
-            });
+            }
+
+            // Draw aliens (UFOs)
+            if (ufoImg.complete) {
+                aliens.forEach((alien) => {
+                    if (alien.alive) {
+                        ctx.drawImage(
+                            ufoImg,
+                            alien.x - ALIEN_SIZE / 2,
+                            alien.y,
+                            ALIEN_SIZE,
+                            ALIEN_SIZE
+                        );
+                    }
+                });
+            }
+
+            // Draw player bullets (missiles)
+            if (missileImg.complete) {
+                playerBullets.forEach((b) => {
+                    ctx.drawImage(missileImg, b.x - 8, b.y - 16, 16, 32);
+                });
+            }
 
             // Draw alien bullets
             ctx.fillStyle = "#f59e0b";
             alienBullets.forEach((b) => {
-                ctx.fillRect(
-                    b.x - BULLET_SIZE / 2,
-                    b.y,
-                    BULLET_SIZE,
-                    BULLET_SIZE * 2
-                );
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
+                ctx.fill();
             });
+
+            // Draw explosions
+            if (explosionImg.complete) {
+                explosions.forEach((exp) => {
+                    const size = 40 + exp.frame * 2; // Grow over time
+                    const alpha = 1 - exp.frame / 20; // Fade out
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(
+                        explosionImg,
+                        exp.x - size / 2,
+                        exp.y - size / 2,
+                        size,
+                        size
+                    );
+                    ctx.globalAlpha = 1;
+                });
+            }
 
             // Display score
             ctx.fillStyle = "#ffffff";
@@ -318,11 +430,20 @@ export default function SpaceInvaders() {
             ctx.strokeText(`Score: ${scoreRef.current}`, 20, 40);
             ctx.fillText(`Score: ${scoreRef.current}`, 20, 40);
 
-            // Aliens remaining
+            // Display lives (hearts)
+            if (heartImg.complete) {
+                for (let i = 0; i < livesRef.current; i++) {
+                    ctx.drawImage(heartImg, 20 + i * 35, 55, 30, 30);
+                }
+            }
+
+            // Aliens remaining and wave number
             const remaining = aliens.filter((a) => a.alive).length;
             ctx.textAlign = "right";
-            ctx.strokeText(`Aliens: ${remaining}`, GAME_WIDTH - 20, 40);
-            ctx.fillText(`Aliens: ${remaining}`, GAME_WIDTH - 20, 40);
+            ctx.strokeText(`Wave: ${waveNumber}`, GAME_WIDTH - 20, 40);
+            ctx.fillText(`Wave: ${waveNumber}`, GAME_WIDTH - 20, 40);
+            ctx.strokeText(`Aliens: ${remaining}`, GAME_WIDTH - 20, 75);
+            ctx.fillText(`Aliens: ${remaining}`, GAME_WIDTH - 20, 75);
 
             // Show countdown overlay
             if (!gameStarted && countdownRef.current) {
@@ -338,46 +459,29 @@ export default function SpaceInvaders() {
                 );
             }
 
-            if (gameWon) {
-                ctx.fillStyle = "rgba(34, 197, 94, 0.8)";
-                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-                ctx.fillStyle = "#fff";
-                ctx.font = "48px sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText("Victory!", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
-                ctx.font = "24px sans-serif";
-                ctx.fillText(
-                    `Final Score: ${scoreRef.current}`,
-                    GAME_WIDTH / 2,
-                    GAME_HEIGHT / 2 + 20
-                );
-                ctx.font = "18px sans-serif";
-                ctx.fillText(
-                    "Press Enter to play again",
-                    GAME_WIDTH / 2,
-                    GAME_HEIGHT / 2 + 60
-                );
-                return;
-            }
-
             if (gameOver) {
                 ctx.fillStyle = "rgba(0,0,0,0.7)";
                 ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                 ctx.fillStyle = "#fff";
                 ctx.font = "48px sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText("Game Over", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
+                ctx.fillText("Game Over", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
                 ctx.font = "24px sans-serif";
                 ctx.fillText(
                     `Final Score: ${scoreRef.current}`,
                     GAME_WIDTH / 2,
-                    GAME_HEIGHT / 2 + 20
+                    GAME_HEIGHT / 2 + 5
+                );
+                ctx.fillText(
+                    `Survived ${waveNumber} Wave${waveNumber > 1 ? "s" : ""}`,
+                    GAME_WIDTH / 2,
+                    GAME_HEIGHT / 2 + 40
                 );
                 ctx.font = "18px sans-serif";
                 ctx.fillText(
                     "Press Enter to restart",
                     GAME_WIDTH / 2,
-                    GAME_HEIGHT / 2 + 60
+                    GAME_HEIGHT / 2 + 80
                 );
                 return;
             }
@@ -388,7 +492,7 @@ export default function SpaceInvaders() {
         requestAnimationFrame(update);
 
         const restart = (e: KeyboardEvent) => {
-            if (e.key === "Enter" && (gameOver || gameWon)) {
+            if (e.key === "Enter" && gameOver) {
                 setStarted(false);
                 setTimeout(() => setStarted(true), 50);
             }
@@ -403,10 +507,10 @@ export default function SpaceInvaders() {
     }, [started]);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50">
             <Link
                 href="/options"
-                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-white text-slate-700 font-medium shadow hover:bg-slate-50 transition"
+                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 transition"
             >
                 ← Back
             </Link>
@@ -424,7 +528,7 @@ export default function SpaceInvaders() {
                     <div className="absolute inset-0 flex items-center justify-center">
                         <button
                             onClick={() => setStarted(true)}
-                            className="rounded-full bg-green-500 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-green-600 hover:scale-105 transition"
+                            className="rounded-full bg-emerald-600 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-emerald-700 hover:scale-105 transition"
                         >
                             Start Game
                         </button>

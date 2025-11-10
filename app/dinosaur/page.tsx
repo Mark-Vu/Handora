@@ -6,7 +6,7 @@ import Link from "next/link";
 const W = DINO_GAME_WIDTH;
 const H = DINO_GAME_HEIGHT;
 const GROUND_Y = H - 80;
-const DINO_WIDTH = 30;
+const DINO_WIDTH = 60;
 const DINO_HEIGHT = 60;
 const OB_WIDTH = 40;
 const OB_HEIGHT = 60;
@@ -180,12 +180,17 @@ export default function DinoJump() {
                 obstacles.forEach((o) => {
                     const obsTop = GROUND_Y - OB_HEIGHT;
                     const obsBottom = GROUND_Y;
+
+                    // Adjust dino hitbox to account for empty corners
+                    const hitboxInsetX = 8; // Reduce width on each side
+                    const hitboxInsetBottom = 10; // Raise bottom
+
                     const dinoTop = dinoY;
-                    const dinoBottom = dinoY + DINO_HEIGHT;
+                    const dinoBottom = dinoY + DINO_HEIGHT - hitboxInsetBottom;
                     const obsLeft = o.x;
                     const obsRight = o.x + OB_WIDTH;
-                    const dinoLeft = 100;
-                    const dinoRight = 100 + DINO_WIDTH;
+                    const dinoLeft = 100 + hitboxInsetX;
+                    const dinoRight = 100 + DINO_WIDTH - hitboxInsetX;
 
                     const overlap =
                         dinoLeft < obsRight &&
@@ -292,10 +297,10 @@ export default function DinoJump() {
     }, [running]);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50">
             <Link
                 href="/options"
-                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-white text-slate-700 font-medium shadow hover:bg-slate-50 transition"
+                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 transition"
             >
                 ← Back
             </Link>
@@ -316,7 +321,7 @@ export default function DinoJump() {
                     <div className="absolute inset-0 flex items-center justify-center">
                         <button
                             onClick={() => setRunning(true)}
-                            className="px-8 py-4 rounded-full bg-green-500 text-white text-xl font-semibold shadow-lg hover:bg-green-600 hover:scale-105 transition"
+                            className="px-8 py-4 rounded-full bg-emerald-600 text-white text-xl font-semibold shadow-lg hover:bg-emerald-700 hover:scale-105 transition"
                         >
                             Start Game
                         </button>

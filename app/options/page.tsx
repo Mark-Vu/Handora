@@ -40,12 +40,12 @@ function GameButton({
 
 export default function Options() {
     return (
-        <div className="min-h-screen bg-linear-to-br from-blue-50 via-purple-50 to-pink-50">
+        <div className="min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50">
             {/* Background decorative elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 h-64 w-64 rounded-full bg-blue-200/30 blur-3xl"></div>
-                <div className="absolute bottom-20 right-10 h-80 w-80 rounded-full bg-purple-200/30 blur-3xl"></div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-pink-200/20 blur-3xl"></div>
+                <div className="absolute top-20 left-10 h-64 w-64 rounded-full bg-emerald-200/30 blur-3xl"></div>
+                <div className="absolute bottom-20 right-10 h-80 w-80 rounded-full bg-teal-200/30 blur-3xl"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-cyan-200/20 blur-3xl"></div>
             </div>
 
             <main className="relative flex min-h-screen flex-col items-center justify-center px-6 py-16">
@@ -79,8 +79,10 @@ export default function Options() {
                     />
                     <GameButton
                         href="/space-invaders"
-                        title="👾 Space Invaders"
-                        description="Shoot the alien invaders before they reach Earth!"
+                        title="Space Invaders"
+                        emoji="👾"
+                        description="Hand-Eye Coordination: Use spacebar and arrows to improve grip strength and directional control."
+                        color="border-purple-200 bg-linear-to-br from-purple-50 to-indigo-50 hover:border-purple-300"
                     />
                     <GameButton
                         href="/dinosaur"

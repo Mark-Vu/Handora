@@ -125,8 +125,6 @@ export default function Home() {
       router.push("/analytics");
     } else if (normalized.includes("go to space invaders")) {
       router.push("/space-invaders");
-    } else if (normalized.includes("go to dinosaur")) {
-      router.push("/dinosaur");
     }
   }, [finalText, router]);
 
@@ -197,7 +195,7 @@ export default function Home() {
           }}
         >
           <strong>Transcript</strong>
-          <p style={{ whiteSpace: "pre-wrap", marginTop: "0.5rem", color: "black" }}>
+          <p style={{ whiteSpace: "pre-wrap", marginTop: "0.5rem", color: "#1a1a1a" }}>
             {finalText}
             <span style={{ opacity: 0.5 }}>{interimText}</span>
           </p>

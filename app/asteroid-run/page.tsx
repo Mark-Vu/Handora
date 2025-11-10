@@ -337,10 +337,10 @@ export default function AsteroidRun() {
     }, [started]);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50">
             <Link
                 href="/options"
-                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-white text-slate-700 font-medium shadow hover:bg-slate-50 transition"
+                className="absolute top-6 left-6 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 transition"
             >
                 ← Back
             </Link>
@@ -353,7 +353,7 @@ export default function AsteroidRun() {
                     <div className="absolute inset-0 flex items-center justify-center">
                         <button
                             onClick={() => setStarted(true)}
-                            className="rounded-full bg-blue-500 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-blue-600 hover:scale-105 transition"
+                            className="rounded-full bg-emerald-600 text-white px-8 py-4 text-xl font-semibold shadow-lg hover:bg-emerald-700 hover:scale-105 transition"
                         >
                             Start
                         </button>
