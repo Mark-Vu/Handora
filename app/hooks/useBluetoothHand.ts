@@ -11,6 +11,12 @@ type Status =
   | "idle" | "requesting" | "connecting" | "subscribing"
   | "connected" | "receiving" | "no-data" | "error";
 
+// --- helper: nice hex dump for raw bytes -----------------------------------
+function hexDump(u8: Uint8Array, max = 64) {
+  const view = u8.length > max ? u8.slice(0, max) : u8;
+  return Array.from(view).map(b => b.toString(16).padStart(2, "0")).join(" ");
+}
+
 export function useBluetoothHand({
   maxSamplesPerFinger = 2000,
   throttleMs = 20,
@@ -28,9 +34,14 @@ export function useBluetoothHand({
 
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const txCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+
+  // --- text decode + line buffering (kept, even if you’re not parsing now) ---
+  const decoderRef = useRef(new TextDecoder("utf-8"));
+  const lineBufRef = useRef<string>("");
+
+  // --- UI throttling + first-packet watchdog --------------------------------
   const lastEmitRef = useRef<number>(0);
   const firstPacketTimer = useRef<number | null>(null);
-
   const clearFirstPacketTimer = () => {
     if (firstPacketTimer.current) {
       window.clearTimeout(firstPacketTimer.current);
@@ -38,49 +49,47 @@ export function useBluetoothHand({
     }
   };
 
-  const parseAndAppend = useCallback((dv: DataView) => {
-    const now = performance.now();
-    if (now - lastEmitRef.current < throttleMs) return;
-    lastEmitRef.current = now;
+  // --- RAW + TEXT LOGGING: fires on every notification ----------------------
+  const onNotify = useCallback((e: Event) => {
+    const dv = (e.target as BluetoothRemoteGATTCharacteristic).value!;
+    if (!dv || dv.byteLength === 0) {
+      console.log("[RAW NOTIFICATION] (empty)");
+      return;
+    }
 
-    if (dv.byteLength < 10) return;
+    const u8 = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
 
-    const s0 = dv.getUint16(0, true) / 100;
-    const s1 = dv.getUint16(2, true) / 100;
-    const s2 = dv.getUint16(4, true) / 100;
-    const s3 = dv.getUint16(6, true) / 100;
-    const s4 = dv.getUint16(8, true) / 100;
-
-    setAngles2D(prev => {
-      const next: Angles2D = [
-        [...prev[0], s0],
-        [...prev[1], s1],
-        [...prev[2], s2],
-        [...prev[3], s3],
-        [...prev[4], s4],
-      ];
-      for (let i = 0; i < 5; i++) {
-        if (next[i].length > maxSamplesPerFinger) {
-          next[i] = next[i].slice(next[i].length - maxSamplesPerFinger);
-        }
-      }
-      return next;
+    // 1) RAW BYTES (length, hex, and first few decimals)
+    console.log("[RAW NOTIFICATION]", {
+      length: dv.byteLength,
+      hex: hexDump(u8, 128),
+      previewDec: Array.from(u8.slice(0, 16)),
+      ts: Date.now(),
     });
 
-    setPackets(p => p + 1);
+    // 2) AS TEXT (streaming decode; may be partial line)
+    const chunk = decoderRef.current.decode(u8, { stream: true });
+    console.log("[AS TEXT]", chunk);
 
+    // Optionally keep your line buffer if you’ll parse later:
+    lineBufRef.current += chunk;
+
+    // If you still want to mark "receiving" on first packet:
     if (firstPacketTimer.current) {
       clearFirstPacketTimer();
       setStatus("receiving");
     }
-  }, [throttleMs, maxSamplesPerFinger]);
 
-  const onNotify = useCallback((e: Event) => {
-    const dv = (e.target as BluetoothRemoteGATTCharacteristic).value!;
-    if (dv) parseAndAppend(dv);
-  }, [parseAndAppend]);
+    // If you *also* still want to keep angles2D ticking (not parsing now):
+    // (comment out if you truly want zero processing)
+    const now = performance.now();
+    if (now - lastEmitRef.current >= throttleMs) {
+      lastEmitRef.current = now;
+      setPackets(p => p + 1);
+    }
+  }, [throttleMs]);
 
-  // Helper: if UUIDs are wrong, enumerate available services/chars for debugging
+  // Helpful enumerator when UUIDs don’t match the firmware
   async function enumerateAll(server: BluetoothRemoteGATTServer) {
     try {
       const services = await server.getPrimaryServices();
@@ -90,9 +99,8 @@ export function useBluetoothHand({
         const chars = await s.getCharacteristics();
         for (const c of chars) lines.push(`  char: ${c.uuid}`);
       }
-      setLastError(
-        "Could not find expected service/characteristic.\nFound:\n" + lines.join("\n")
-      );
+      console.log("[GATT ENUMERATION]\n" + lines.join("\n"));
+      setLastError("Found services/chars:\n" + lines.join("\n"));
     } catch (e: any) {
       setLastError("Enumeration failed: " + (e?.message || String(e)));
     }
@@ -103,7 +111,6 @@ export function useBluetoothHand({
       setLastError(null);
       setStatus("requesting");
 
-      // ✅ Show EVERYTHING; rely on optionalServices to access NUS later
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: [NUS_SERVICE],
@@ -111,12 +118,17 @@ export function useBluetoothHand({
 
       deviceRef.current = device;
       device.addEventListener("gattserverdisconnected", () => {
+        console.log("[BLE] Disconnected");
+        // Flush any pending decoder bytes as a final string:
+        const tail = decoderRef.current.decode(); // flush
+        if (tail) console.log("[AS TEXT][flush]", tail);
         setConnected(false);
         setStatus("idle");
       });
 
       setStatus("connecting");
       const server = await device.gatt!.connect();
+      console.log("[BLE] GATT connected to", device.name || "(unnamed)");
 
       setStatus("subscribing");
       let service: BluetoothRemoteGATTService;
@@ -124,30 +136,38 @@ export function useBluetoothHand({
 
       try {
         service = await server.getPrimaryService(NUS_SERVICE);
-      } catch (e) {
+      } catch {
         await enumerateAll(server);
         throw new Error("NUS service not found on device");
       }
 
       try {
         txChar = await service.getCharacteristic(NUS_TX_CHAR); // Notify path (device→browser)
-      } catch (e) {
+      } catch {
         await enumerateAll(server);
         throw new Error("NUS TX (notify) characteristic not found");
       }
 
       txCharRef.current = txChar;
+
+      // Reset buffers/log timers on a new connection
+      lineBufRef.current = "";
+      lastEmitRef.current = 0;
+
       await txChar.startNotifications();
+      console.log("[BLE] Notifications started on", txChar.uuid);
       txChar.addEventListener("characteristicvaluechanged", onNotify);
 
       setConnected(true);
       setStatus("connected");
 
+      // Start watchdog: flip to "no-data" if nothing arrives
       clearFirstPacketTimer();
       firstPacketTimer.current = window.setTimeout(() => {
         if (packets === 0) setStatus("no-data");
       }, firstPacketTimeoutMs) as unknown as number;
     } catch (err: any) {
+      console.error("[BLE ERROR]", err);
       setLastError(err?.message || String(err));
       setConnected(false);
       setStatus("error");
@@ -165,6 +185,9 @@ export function useBluetoothHand({
       const dev = deviceRef.current;
       if (dev?.gatt?.connected) dev.gatt.disconnect();
     } finally {
+      // Flush decoder
+      const tail = decoderRef.current.decode();
+      if (tail) console.log("[AS TEXT][flush]", tail);
       setConnected(false);
       setStatus("idle");
     }
@@ -177,11 +200,15 @@ export function useBluetoothHand({
       try {
         setStatus("connecting");
         const server = await dev.gatt.connect();
+        console.log("[BLE] Reconnected");
         setStatus("subscribing");
         const service = await server.getPrimaryService(NUS_SERVICE);
         const txChar = await service.getCharacteristic(NUS_TX_CHAR);
         txCharRef.current = txChar;
+        lineBufRef.current = "";
+        lastEmitRef.current = 0;
         await txChar.startNotifications();
+        console.log("[BLE] Notifications restarted");
         txChar.addEventListener("characteristicvaluechanged", onNotify);
         setConnected(true);
         setStatus("connected");
@@ -190,6 +217,7 @@ export function useBluetoothHand({
           if (packets === 0) setStatus("no-data");
         }, firstPacketTimeoutMs) as unknown as number;
       } catch (err: any) {
+        console.error("[BLE ERROR]", err);
         setLastError(err?.message || String(err));
         setConnected(false);
         setStatus("error");
