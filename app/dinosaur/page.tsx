@@ -37,21 +37,47 @@ export default function DinoJump() {
         canvas.width = W;
         canvas.height = H;
 
-        // Sky
-        ctx.fillStyle = "#e0f2fe";
-        ctx.fillRect(0, 0, W, H);
+        // Load images
+        const dinoImg = new Image();
+        dinoImg.src = "/images/dinosaur.png";
+        const cactusImg = new Image();
+        cactusImg.src = "/images/cactus.png";
 
-        // Ground
-        ctx.fillStyle = "#a16207";
-        ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+        const drawInitial = () => {
+            // Sky
+            ctx.fillStyle = "#e0f2fe";
+            ctx.fillRect(0, 0, W, H);
 
-        // Dino
-        ctx.fillStyle = "#22c55e";
-        ctx.fillRect(100, GROUND_Y - DINO_HEIGHT, DINO_WIDTH, DINO_HEIGHT);
+            // Ground
+            ctx.fillStyle = "#a16207";
+            ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
 
-        // Eye
-        ctx.fillStyle = "#000";
-        ctx.fillRect(120, GROUND_Y - DINO_HEIGHT + 15, 8, 8);
+            // Dino
+            if (dinoImg.complete) {
+                ctx.drawImage(
+                    dinoImg,
+                    100,
+                    GROUND_Y - DINO_HEIGHT,
+                    DINO_WIDTH,
+                    DINO_HEIGHT
+                );
+            }
+
+            // Sample cactus
+            if (cactusImg.complete) {
+                ctx.drawImage(
+                    cactusImg,
+                    W - 150,
+                    GROUND_Y - OB_HEIGHT,
+                    OB_WIDTH,
+                    OB_HEIGHT
+                );
+            }
+        };
+
+        drawInitial();
+        dinoImg.onload = drawInitial;
+        cactusImg.onload = drawInitial;
     }, [running]);
 
     useEffect(() => {
@@ -73,6 +99,12 @@ export default function DinoJump() {
 
         scoreRef.current = 0;
         setScore(0);
+
+        // Load images
+        const dinoImg = new Image();
+        dinoImg.src = "/images/dinosaur.png";
+        const cactusImg = new Image();
+        cactusImg.src = "/images/cactus.png";
 
         // Countdown sequence
         const startCountdown = async () => {
@@ -185,17 +217,22 @@ export default function DinoJump() {
             ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
 
             // dino
-            ctx.fillStyle = "#22c55e";
-            ctx.fillRect(100, dinoY, DINO_WIDTH, DINO_HEIGHT);
-
-            // eye
-            ctx.fillStyle = "#000";
-            ctx.fillRect(120, dinoY + 15, 8, 8);
+            if (dinoImg.complete) {
+                ctx.drawImage(dinoImg, 100, dinoY, DINO_WIDTH, DINO_HEIGHT);
+            }
 
             // obstacles
             obstacles.forEach((o) => {
-                ctx.fillStyle = "#dc2626";
-                ctx.fillRect(o.x, GROUND_Y - OB_HEIGHT, OB_WIDTH, OB_HEIGHT);
+                // Draw cactus
+                if (cactusImg.complete) {
+                    ctx.drawImage(
+                        cactusImg,
+                        o.x,
+                        GROUND_Y - OB_HEIGHT,
+                        OB_WIDTH,
+                        OB_HEIGHT
+                    );
+                }
 
                 // Draw number below obstacle
                 ctx.fillStyle = "#000";
