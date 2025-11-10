@@ -79,10 +79,8 @@ export default function Options() {
                     />
                     <GameButton
                         href="/space-invaders"
-                        title="Space Invaders"
-                        emoji="👾"
-                        description="Hand-Eye Coordination: Use spacebar and arrows to improve grip strength and directional control."
-                        color="border-purple-200 bg-linear-to-br from-purple-50 to-indigo-50 hover:border-purple-300"
+                        title="👾 Space Invaders"
+                        description="Shoot the alien invaders before they reach Earth!"
                     />
                     <GameButton
                         href="/dinosaur"

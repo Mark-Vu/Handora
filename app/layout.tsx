@@ -13,9 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Handora",
-    description:
-        "Handora is a platform for building and playing games that help you improve your hand strength and coordination.",
+  title: "Handora - Game Therapy",
+  description: "Let's have fun during rehab",
 };
 
 export default function RootLayout({
