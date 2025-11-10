@@ -1,6 +1,6 @@
 "use client";
 
-import type { Angles2D } from "../hooks/useBluetoothHand";
+import type { Signals } from "../hooks/useBluetoothHand";
 
 export default function HandControls({
     connected,
@@ -8,14 +8,14 @@ export default function HandControls({
     disconnect,
     reconnect,
     resetData,
-    angles2D,
+    signals,
 }: {
     connected: boolean;
     connect: () => Promise<void>;
     disconnect: () => Promise<void>;
     reconnect: () => Promise<void>;
     resetData: () => void;
-    angles2D: Angles2D;
+    signals: Signals;
 }) {
     return (
         <div style={{ display: "grid", gap: 8 }}>
@@ -26,7 +26,7 @@ export default function HandControls({
                     <>
                         <button onClick={disconnect}>Disconnect</button>
                         <button onClick={reconnect}>Reconnect</button>
-                        <button onClick={resetData}>Clear</button>
+                        <button onClick={resetData}>Reset</button>
                     </>
                 )}
             </div>

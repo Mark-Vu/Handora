@@ -2,14 +2,28 @@
 
 import BluetoothGate from "../components/BluetoothGate";
 import HandPanel from "../components/HandPanel";
+import { useEffect, useState } from "react";
 
 export default function Page() {
+  const [countdown, setCountdown] = useState(8);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((c) => c - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
   return (
     <main className="shell">
       <div className="bg-glow" />
       <section className="hero">
         <h1>Calibration</h1>
         <p>Connect your Bluetooth flex-sensor glove and stream live finger angles.</p>
+        <div className="countdown">
+          <b>{countdown}</b>
+        </div>
       </section>
 
       <BluetoothGate>
@@ -64,6 +78,16 @@ export default function Page() {
         .hero p {
           margin: 0;
           opacity: 0.8;
+        }
+
+        .countdown {
+          margin: 0 0 8px;
+          font-size: clamp(18px, 3vw, 30px);
+          letter-spacing: 0.2px;
+          background: linear-gradient(90deg, #2563eb, #7c3aed, #0891b2);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
         }
       `}</style>
     </main>

@@ -6,7 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const NUS_TX_CHAR = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // Notify (device -> browser)
 
-export type Angles2D = [number[], number[], number[], number[], number[]];
+export type Signals = [number, number, number, number, number, number, number, number];
+export type Angles2D = [number[], number[], number[], number[], number[], number[], number[], number[]];
+
 type Status =
   | "idle" | "requesting" | "connecting" | "subscribing"
   | "connected" | "receiving" | "no-data" | "error";
@@ -18,7 +20,6 @@ function hexDump(u8: Uint8Array, max = 64) {
 }
 
 export function useBluetoothHand({
-  maxSamplesPerFinger = 2000,
   throttleMs = 20,
   firstPacketTimeoutMs = 3000,
 }: {
@@ -28,7 +29,8 @@ export function useBluetoothHand({
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [connected, setConnected] = useState(false);
-  const [angles2D, setAngles2D] = useState<Angles2D>([[], [], [], [], []]);
+  const [angles, setAngles] = useState<Angles2D>([[], [], [], [], [], [], [], []]);
+  const [signals, setSignals] = useState<Signals>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [packets, setPackets] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -48,6 +50,20 @@ export function useBluetoothHand({
       firstPacketTimer.current = null;
     }
   };
+
+  useEffect(() => {
+    // signals are 60% of the maximum seen so far in each channel
+    setSignals(prev => {
+      const out = [...prev] as Signals;
+      for (let j = 0; j < 8; j++) {
+        const arr = angles[j];
+        if (arr.length === 0) { out[j] = 0; continue; } // guard empties
+        const max = Math.max(...arr);
+        out[j] = (Number.isFinite(max) ? max : 0) * 0.6;
+      }
+      return out as Signals;
+    });
+  }, [angles]);
 
   // --- RAW + TEXT LOGGING: fires on every notification ----------------------
   const onNotify = useCallback((e: Event) => {
@@ -69,7 +85,17 @@ export function useBluetoothHand({
 
     // 2) AS TEXT (streaming decode; may be partial line)
     const chunk = decoderRef.current.decode(u8, { stream: true });
-    console.log("[AS TEXT]", chunk);
+    const data = chunk.trim().split(/\s+/).map(Number);
+    console.log("Signal data:", data);
+    setAngles(prev => {
+      const next: Angles2D = prev.map(a => a.slice()) as Angles2D;
+      for (let i = 0; i < 8; i++) {
+        next[i].push(data[i]);
+        // Optional cap to avoid unbounded growth. Tweak 2000 if you want:
+        if (next[i].length > 2000) next[i].shift();
+      }
+      return next;
+    });
 
     // Optionally keep your line buffer if you’ll parse later:
     lineBufRef.current += chunk;
@@ -80,7 +106,7 @@ export function useBluetoothHand({
       setStatus("receiving");
     }
 
-    // If you *also* still want to keep angles2D ticking (not parsing now):
+    // If you *also* still want to keep angles ticking (not parsing now):
     // (comment out if you truly want zero processing)
     const now = performance.now();
     if (now - lastEmitRef.current >= throttleMs) {
@@ -226,7 +252,7 @@ export function useBluetoothHand({
   }, [connect, onNotify, firstPacketTimeoutMs, packets]);
 
   const resetData = useCallback(() => {
-    setAngles2D([[], [], [], [], []]);
+    setAngles([[], [], [], [], [], [], [], []]);
     setPackets(0);
   }, []);
 
@@ -237,7 +263,7 @@ export function useBluetoothHand({
     lastError,
     connected,
     packets,
-    angles2D,
+    signals,
     connect,
     disconnect,
     reconnect,

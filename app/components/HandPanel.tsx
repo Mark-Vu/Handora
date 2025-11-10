@@ -2,13 +2,16 @@
 
 import { useBluetoothHand } from "../hooks/useBluetoothHand";
 import HandControls from "./HandControls";
-import { useAnglesLocalSave } from "../hooks/useAnglesLocalSave";
 
 export default function HandPanel() {
   const bt = useBluetoothHand({ throttleMs: 20 }); // namePrefix not used in the hook signature now
-  useAnglesLocalSave(bt.angles2D);
 
-  const samplesPerFinger = bt.angles2D.map((a) => a.length);
+  setTimeout(() => {
+    const signals = [...bt.signals];
+    swap(signals, 1, 3);
+    swap(signals, 2, 4);
+    localStorage.setItem("signals", JSON.stringify(signals));
+  }, 10000);
 
   // Map status -> label + colors
   const statusMap: Record<
@@ -26,6 +29,12 @@ export default function HandPanel() {
   };
 
   const s = statusMap[bt.status];
+
+  function swap(arr: any, i: any, j: any) {
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
 
   return (
     <section className="panel">
@@ -45,7 +54,7 @@ export default function HandPanel() {
         <div className="counts">
           {["Thumb", "Index", "Middle", "Ring", "Pinky"].map((label, i) => (
             <div key={label} className="chip">
-              {label}: <b>{samplesPerFinger[i]}</b>
+              {label}: <b>{bt.signals[i]}</b>
             </div>
           ))}
         </div>
@@ -64,7 +73,7 @@ export default function HandPanel() {
           disconnect={bt.disconnect}
           reconnect={bt.reconnect}
           resetData={bt.resetData}
-          angles2D={bt.angles2D}
+          signals={bt.signals}
         />
       </div>
 
