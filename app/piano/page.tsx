@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { GAME_WIDTH, GAME_HEIGHT } from "@/utils/constants";
 import Link from "next/link";
+import { useBluetoothHand } from "../hooks/useBluetoothHand";
 
 const LANES = 5;
 const TILE_WIDTH = GAME_WIDTH / LANES;
 const TILE_HEIGHT = 180;
 const MAX_MISSES = 3;
-const BASE_SPEED = 4;
+const BASE_SPEED = 2;
 const SPEED_GAIN = 0.1;
 const COUNTDOWN = ["3", "2", "1", "Start!"];
 const HIT_ZONE_HEIGHT = 150; // Threshold zone at bottom
@@ -124,6 +125,50 @@ export default function Piano() {
     const notes = useRef<HTMLAudioElement[]>([]);
     const isRunningRef = useRef(false);
     const isGameOverRef = useRef(false);
+
+    // Bluetooth glove integration
+    const bt = useBluetoothHand({ throttleMs: 20 });
+    const [thresholdSignals, setThresholdSignals] = useState<number[]>([]);
+    const lastTapTime = useRef<number[]>([0, 0, 0, 0, 0]); // Track last tap time for each finger
+    const TAP_COOLDOWN = 200; // ms cooldown between taps for same finger
+    const hitRef = useRef<((lane: number) => void) | null>(null);
+
+    // Load calibration signals from localStorage
+    useEffect(() => {
+        const stored = localStorage.getItem("signals");
+        if (stored) {
+            try {
+                const signals = JSON.parse(stored);
+                // Take first 5 elements (thumb, index, middle, ring, pinky)
+                setThresholdSignals(signals.slice(0, 5));
+            } catch (e) {
+                console.error("Failed to load calibration signals", e);
+            }
+        }
+    }, []);
+
+    // Monitor Bluetooth signals and trigger hits when finger crosses threshold
+    useEffect(() => {
+        if (
+            !isRunning ||
+            !bt.connected ||
+            thresholdSignals.length === 0 ||
+            !hitRef.current
+        )
+            return;
+
+        const now = Date.now();
+        for (let i = 0; i < 5; i++) {
+            // Check if current signal >= threshold AND cooldown has passed
+            if (
+                bt.signals[i] >= thresholdSignals[i] &&
+                now - lastTapTime.current[i] > TAP_COOLDOWN
+            ) {
+                lastTapTime.current[i] = now;
+                hitRef.current(i); // Trigger hit for lane i
+            }
+        }
+    }, [bt.signals, bt.connected, isRunning, thresholdSignals, TAP_COOLDOWN]);
 
     // Load sounds once
     useEffect(() => {
@@ -421,6 +466,9 @@ export default function Piano() {
                 });
             };
 
+            // Make hit function accessible to Bluetooth effect
+            hitRef.current = hit;
+
             const miss = (tile?: { lane: number; graphic: PIXI.Graphics }) => {
                 if (tile) removeTile(tile);
                 setMisses((m) => {
@@ -499,6 +547,7 @@ export default function Piano() {
             if (keyboardHandler) {
                 window.removeEventListener("keydown", keyboardHandler);
             }
+            hitRef.current = null; // Clear hit function reference
         };
     }, [started]);
 
