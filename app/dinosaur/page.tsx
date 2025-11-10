@@ -106,6 +106,15 @@ export default function DinoJump() {
         const cactusImg = new Image();
         cactusImg.src = "/images/cactus.png";
 
+        // Load finger images
+        const fingerImages: { [key: number]: HTMLImageElement } = {};
+        const fingerNames = ["thumb", "index", "middle", "ring", "pinky"];
+        fingerNames.forEach((name, index) => {
+            const img = new Image();
+            img.src = `/images/piano/${name}.png`;
+            fingerImages[index + 1] = img;
+        });
+
         // Countdown sequence
         const startCountdown = async () => {
             const sequence = ["3", "2", "1", "Start!"];
@@ -182,7 +191,7 @@ export default function DinoJump() {
                     const obsBottom = GROUND_Y;
 
                     // Adjust dino hitbox to account for empty corners
-                    const hitboxInsetX = 8; // Reduce width on each side
+                    const hitboxInsetX = 18; // Reduce width on each side
                     const hitboxInsetBottom = 10; // Raise bottom
 
                     const dinoTop = dinoY;
@@ -239,15 +248,18 @@ export default function DinoJump() {
                     );
                 }
 
-                // Draw number below obstacle
-                ctx.fillStyle = "#000";
-                ctx.font = "bold 28px sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(
-                    o.num.toString(),
-                    o.x + OB_WIDTH / 2,
-                    GROUND_Y + 35
-                );
+                // Draw finger image below obstacle
+                const fingerImg = fingerImages[o.num];
+                if (fingerImg && fingerImg.complete) {
+                    const imgSize = 40;
+                    ctx.drawImage(
+                        fingerImg,
+                        o.x + OB_WIDTH / 2 - imgSize / 2,
+                        GROUND_Y + 10,
+                        imgSize,
+                        imgSize
+                    );
+                }
             });
 
             // score
@@ -305,11 +317,11 @@ export default function DinoJump() {
                 ← Back
             </Link>
             <h1 className="text-3xl font-bold mb-2 text-slate-800">
-                Number Dino Jump 🦖
+                Dino Jump 🦖
             </h1>
             <p className="mb-4 text-slate-600">
-                Press the <strong>number</strong> shown on the next obstacle to
-                jump over it!
+                Press the <strong>finger number (1-5)</strong> matching the
+                finger shown on the obstacle to jump over it!
             </p>
 
             <div className="relative">
